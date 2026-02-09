@@ -78,9 +78,9 @@ homeUI <- function(id) {
                    HTML("Developed by <b>Abhijith et al. (2025)</b><br>
                    ICAR-Indian Agricultural Research Institute, Assam<br>"),
                    p("Contact for reporting bugs, queries, or feedback:"),
-                   tags$a(href = "mailto:abhijithkpgen@gmail.com", 
+                   tags$a(href = "mailto:pbatinfo@gmail.com", 
                           style = "font-weight: bold; color: #1F4E79;",
-                          icon("envelope"), "abhijithkpgen@gmail.com"),
+                          icon("envelope"), "pbatinfo@gmail.com"),
                    br(), br(),
                    tags$div(
                      class = "custom-footer",
