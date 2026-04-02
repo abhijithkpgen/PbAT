@@ -32,6 +32,15 @@ app_ui <- function() {
       ),
       
       tags$head(
+        # --- Google Analytics Script ---
+        tags$script(async = NA, src = "https://www.googletagmanager.com/gtag/js?id=G-5NMMGN97MY"),
+        tags$script(HTML("
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-5NMMGN97MY');
+        ")),
+        
         # --- ADD THIS LINE FOR THE FAVICON ---
         tags$link(rel = "icon", type = "image/png", href = "www/LogoNobg.png"),
         
@@ -334,7 +343,7 @@ app_ui <- function() {
                                   h3("Troubleshooting Common Issues"),
                                   p("Encountering an issue? Most problems with complex model analyses are related to network connection timeouts or temporary rendering glitches. Here are a few simple steps you can take to resolve common errors."),
                                   h4("Problem: Results Not Appearing After Running an Analysis or  incomplete user interface appear after proceeding to analysis"),
-                                  p(HTML("<b>Cause:</b> This can happen when either the app hasnt loaded full or incases where an analysis takes a while to complete, especially on a slower internet connection, or if there's a temporary glitch while displaying the results. The analysis likely finished successfully on the server, but the results weren't displayed correctly in your browser.")),
+                                  p(HTML("<b>Cause:</b> This can happen when either the app hasn't loaded full or incases where an analysis takes a while to complete, especially on a slower internet connection, or if there's a temporary glitch while displaying the results. The analysis likely finished successfully on the server, but the results weren't displayed correctly in your browser.")),
                                   h4("Solutions (Try these in order):"),
                                   tags$ul(
                                     tags$li(HTML("<b>1. Reload and Rerun:</b><br>This is the easiest and most common fix. If the results area or input area is blank, simply reload the entire web page and run the analysis again. This resolves most temporary rendering issues.")),
