@@ -269,7 +269,7 @@ app_ui <- function() {
                                   
                                   div(
                                     h4("For the PbAT Application:", style="color:#1F4E79;"),
-                                    tags$blockquote("Abhijith, K. P., Vinod, K. K., Ellur, R. K., Ravikiran, K. T., Saxena, R. K., Muthusamy, V., & S, Gopalakrishnan. (2025).PbAT: Plant Breeding Analytical Tools (v1.0.5). Zenodo. https://doi.org/10.5281/zenodo.17020132")
+                                    tags$blockquote("Abhijith, K. P., Vinod, K. K., Ellur, R. K., Ravikiran, K. T., Saxena, R. K., Muthusamy, V., & Krishnan, S. G. (2026). PbAT: A user friendly R/Shiny platform for data-driven decision support in crop improvement. Applications in Plant Sciences (In Press)")
                                   ),
                                   
                                   div(
