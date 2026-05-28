@@ -1,17 +1,23 @@
 Package: PbAT
 Title: Plant Breeding Analytical Tools (Shiny Application)
 Version: 1.0.5
-Authors@R: 
+Authors@R: c(
     person("Krishnan P", "Abhijith",
            email = "abhijithkpgen@gmail.com",
            role = c("aut", "cre"),
-           comment = c(ORCID = "0000-0001-8641-026X"))
+           comment = c(ORCID = "0000-0001-8641-026X")),
+    person("K. K.", "Vinod", role = "aut"),
+    person("R. K.", "Ellur", role = "aut"),
+    person("K. T.", "Ravikiran", role = "aut"),
+    person("R. K.", "Saxena", role = "aut"),
+    person("V.", "Muthusamy", role = "aut"),
+    person("S.", "Gopalakrishnan", role = "aut"))
 Description: Provides an interactive Shiny application for plant breeding 
     analyses, including designing experiments (RCBD, Augmented RCBD, Alpha 
     Lattice), analyzing experimental data, mating design analytics, 
     stability analysis, and multivariate analysis. Designed for 
     non-programmers with a point-and-click interface.
-License: MIT + file LICENSE
+License: GPL-3 + file LICENSE
 URL: https://github.com/abhijithkpgen/PBAT
 BugReports: https://github.com/abhijithkpgen/PBAT/issues
 Encoding: UTF-8

@@ -5,7 +5,7 @@ app_ui <- function() {
     title = div(
       style = "display: flex; align-items: center; gap: 16px;",
       tags$img(src = "www/LogoNobg.png", height = "50px", style = "margin-right: 8px;"),
-      span("PbAT: Plant Breeding Analytical Tools v1.0.5", style = "font-weight: 800; font-size: 1.4rem;")
+      span("PbAT: Plant breeding Analytical Tools v1.0.5", style = "font-weight: 800; font-size: 1.4rem;")
     ),
     id = "main_navbar", 
     theme = bslib::bs_theme(
@@ -32,6 +32,18 @@ app_ui <- function() {
       ),
       
       tags$head(
+        # --- Google Analytics Script ---
+        tags$script(async = NA, src = "https://www.googletagmanager.com/gtag/js?id=G-5NMMGN97MY"),
+        tags$script(HTML("
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-5NMMGN97MY');
+        ")),
+        
+        # --- ADD THIS LINE FOR THE FAVICON ---
+        tags$link(rel = "icon", type = "image/png", href = "www/LogoNobg.png"),
+        
         tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"),
         tags$link(rel = "stylesheet", href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"),
         
@@ -217,7 +229,6 @@ app_ui <- function() {
     ")))
     ),
     
-    # --- UPDATED HOME TAB ---
     tabPanel("Home", homeUI(id = "home")),
     
     designExperimentUI(id = "design_experiment"), 
@@ -235,33 +246,30 @@ app_ui <- function() {
     
     multivariate_analysis_ui(id = "multi"),
     
-    tabPanel("Help & Guide",
+    # <<< START OF MODIFIED SECTION >>>
+    tabPanel("About",
              fluidPage(
                div(style = "padding: 30px;",
-                   h2("Help & Guide", style = "color: #23272b;"),
+                   h2("About PbAT", style = "color: #1F4E79; font-weight: bold;"),
                    tabsetPanel(
-                     id = "help_tabs",
-                     tabPanel("Sample Data",
-                              div(style = "padding-top: 20px;",
-                                  h3("Sample Data Downloads"),
-                                  p("Disclaimer: The example datasets provided in this application are simulated for demonstration purposes only. They do not represent actual experimental results and should not be used for research conclusions."),
-                                  tags$ul(
-                                    tags$li(tags$a(href = "www/Alpha_lattice_sample.csv", "Alpha Lattice Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Augmented_RCBD_Sample.csv", "Augmented RCBD Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Diallel_Griffing_Method1_Sample.csv", "Griffing Method I Diallel Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Diallel_Griffing_Method2_Sample.csv", "Griffing Method II Diallel Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Diallel_Griffing_Method3_Sample.csv", "Griffing Method III Diallel Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Diallel_Griffing_Method4_Sample.csv", "Griffing Method IV Diallel Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Factorial_CRD_sample.csv", "Factorial CRD Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Line_x_Tester_Sample.csv", "Line x Tester Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Partial_diallel_dummy.csv", "Partial Diallel Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/AMMI_GGE_Sample_Data.csv", "Biplot Sample Format CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Mult_Variate_sample_format.csv", "Multivariate Analysis Sample Format CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/RCBD_sample.csv", "RCBD Sample CSV", download = NA, target = "_blank"))
-                                  )
+                     id = "about_tabs",
+                     tabPanel("Our Mission",
+                              div(style = "padding: 20px; max-width: 800px; margin: 20px auto; background-color: transparent; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);",
+                                  br(),
+                                  p("Hi,"),
+                                  p("Thanks for checking out, PbAT."),
+                                  p("Statistical analysis lies at the heart of plant breeding, but too often, the complexity of coding stands in the way. We understand that, sometimes researchers end up spending more time wrestling with programming than advancing their science."),
+                                  p("Thats why we created PbAT (Plant Breeding Analytical Tools)."),
+                                  p("PbAT is a free, open-access web application designed to break down those barriers. It unifies the entire analytical pipeline, trial design, data curation, experimental design analyses, stability assessments, multivariate approaches, and mating designs into one seamless, code free workflow."),
+                                  p("We hope PbAT makes your analyses simpler, and we would be delighted if you could share your feedback, constraints, suggestions and obviously the bugs at ",
+                                    tags$a(href="mailto:abhijithkpgen@gmail.com", "abhijithkpgen@gmail.com"),
+                                    " to help us further improve the application."),
+                                  p("We invite you to explore PbAT, streamline your analysis, and spend more time where it matters most, on discovery and innovation in plant breeding."),
+                                  br(),
+                                  p("Sincerely,"),
+                                  p(tags$b("The PbAT Team"))
                               )
                      ),
-                     # --- NEW: CITATION TAB ---
                      tabPanel("Citation Recommendation",
                               div(style = "padding-top: 20px;",
                                   h3("Citation Recommendations"),
@@ -297,20 +305,52 @@ app_ui <- function() {
                                     tags$blockquote("Wickham, H. (2016). ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York.")
                                   )
                               )
+                     )
+                   )
+               )
+             )
+    ),
+    # <<< END OF MODIFIED SECTION >>>
+    
+    tabPanel("Help & Guide",
+             fluidPage(
+               div(style = "padding: 30px;",
+                   h2("Help & Guide", style = "color: #23272b;"),
+                   tabsetPanel(
+                     id = "help_tabs",
+                     tabPanel("Sample Data",
+                              div(style = "padding-top: 20px;",
+                                  h3("Sample Data Downloads"),
+                                  p("Disclaimer: The example datasets provided in this application are simulated for demonstration purposes only. They do not represent actual experimental results and should not be used for research conclusions."),
+                                  tags$ul(
+                                    tags$li(tags$a(href = "www/Alpha_lattice_sample.csv", "Alpha Lattice Sample CSV", download = NA, target = "_blank")),
+                                    tags$li(tags$a(href = "www/Augmented_RCBD_Sample.csv", "Augmented RCBD Sample CSV", download = NA, target = "_blank")),
+                                    tags$li(tags$a(href = "www/Diallel_Griffing_Method1_Sample.csv", "Griffing Method I Diallel Sample CSV", download = NA, target = "_blank")),
+                                    tags$li(tags$a(href = "www/Diallel_Griffing_Method2_Sample.csv", "Griffing Method II Diallel Sample CSV", download = NA, target = "_blank")),
+                                    tags$li(tags$a(href = "www/Diallel_Griffing_Method3_Sample.csv", "Griffing Method III Diallel Sample CSV", download = NA, target = "_blank")),
+                                    tags$li(tags$a(href = "www/Diallel_Griffing_Method4_Sample.csv", "Griffing Method IV Diallel Sample CSV", download = NA, target = "_blank")),
+                                    tags$li(tags$a(href = "www/Factorial_CRD_sample.csv", "Factorial CRD Sample CSV", download = NA, target = "_blank")),
+                                    tags$li(tags$a(href = "www/Line_x_Tester_Sample.csv", "Line x Tester Sample CSV", download = NA, target = "_blank")),
+                                    tags$li(tags$a(href = "www/Partial_diallel_dummy.csv", "Partial Diallel Sample CSV", download = NA, target = "_blank")),
+                                    tags$li(tags$a(href = "www/AMMI_GGE_Sample_Data.csv", "Biplot Sample Format CSV", download = NA, target = "_blank")),
+                                    tags$li(tags$a(href = "www/Mult_Variate_sample_format.csv", "Multivariate Analysis Sample Format CSV", download = NA, target = "_blank")),
+                                    tags$li(tags$a(href = "www/RCBD_sample.csv", "RCBD Sample CSV", download = NA, target = "_blank"))
+                                  )
+                              )
                      ),
                      tabPanel("Troubleshooting",
                               div(style = "padding-top: 20px;",
                                   h3("Troubleshooting Common Issues"),
                                   p("Encountering an issue? Most problems with complex model analyses are related to network connection timeouts or temporary rendering glitches. Here are a few simple steps you can take to resolve common errors."),
                                   h4("Problem: Results Not Appearing After Running an Analysis or  incomplete user interface appear after proceeding to analysis"),
-                                  p(HTML("<b>Cause:</b> This can happen when either the app hasnt loaded full or incases where an analysis takes a while to complete, especially on a slower internet connection, or if there's a temporary glitch while displaying the results. The analysis likely finished successfully on the server, but the results weren't displayed correctly in your browser.")),
+                                  p(HTML("<b>Cause:</b> This can happen when either the app hasn't loaded full or incases where an analysis takes a while to complete, especially on a slower internet connection, or if there's a temporary glitch while displaying the results. The analysis likely finished successfully on the server, but the results weren't displayed correctly in your browser.")),
                                   h4("Solutions (Try these in order):"),
                                   tags$ul(
                                     tags$li(HTML("<b>1. Reload and Rerun:</b><br>This is the easiest and most common fix. If the results area or input area is blank, simply reload the entire web page and run the analysis again. This resolves most temporary rendering issues.")),
                                     tags$li(HTML("<b>2. Ensure a Stable Internet Connection:</b><br>Since these analyses involve sending data and waiting for results, a stable connection is key. If you are on a weak Wi-Fi signal, try moving closer to your router or connect to a more reliable network before rerunning the analysis.")),
-                                    tags$li(HTML("<b>3. Reduce the Analysis Workload:</b><br>The more traits you select, the longer the server needs to compute. If the analysis is still failing, try reducing the complexity by selecting fewer traits at a time.")),
+                                    
                                     tags$li(HTML("<b>4. Be Patient:</b><br>A complex mixed-model analysis on a large dataset can take some time. After clicking 'Run,' please allow up to a minute for the server to process before assuming there is an error.")),
-                                    tags$li(HTML("<b>5. Use the R Package Locally:</b><br>For very large datasets or complex multi-trait analyses, consider installing the PBAT R package (instructions on the Home tab) and running it on your own computer for the smoothest and fastest experience."))
+                                    tags$li(HTML("<b>5. Use the R Package Locally:</b><br>For very large datasets or complex multi-trait analyses, consider installing the PbAT R package  and running it on your own computer for the smoothest and fastest experience."))
                                     
                                     
                                   )

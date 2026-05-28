@@ -199,23 +199,6 @@ analysisServer <- function(id, home_inputs) {
     get_equation_key <- function(design, trial_type, model_type) { trial_str <- if (trial_type == "Multi Environment") "multi" else "single"; model_str <- tolower(model_type); key <- paste(design, trial_str, model_str, sep = "_"); return(key) }
     add_significance_stars <- function(p_values) { sapply(p_values, function(p) { if (is.na(p)) return(""); if (p < 0.001) return("***"); if (p < 0.01) return("**"); if (p < 0.05) return("*"); return("ns") }) }
     
-    # --- Block E8 Part B: ANOVA FUNCTION ---
-    extract_custom_anova <- function(df, trait, entry_col, block_col, rep_col, env_col, design) {
-      tryCatch({
-        bt <- function(x) paste0("`", x, "`"); base_formula <- paste(bt(trait), "~", bt(entry_col))
-        if (!is.null(env_col)) { base_formula <- paste(base_formula, "+", bt(env_col), "+", bt(entry_col), ":", bt(env_col)) }
-        if (design == "alphalattice") { req(rep_col); if (!is.null(env_col)) { base_formula <- paste(base_formula, "+", bt(env_col), "/", bt(rep_col), "/", bt(block_col)) } else { base_formula <- paste(base_formula, "+", bt(rep_col), "/", bt(block_col)) }
-        } else { if (!is.null(env_col)) { base_formula <- paste(base_formula, "+", bt(env_col), "/", bt(block_col)) } else { base_formula <- paste(base_formula, "+", bt(block_col)) } }
-        fit_anova <- lm(as.formula(base_formula), data = df)
-        anova_raw <- as.data.frame(stats::anova(fit_anova)) %>% tibble::rownames_to_column("Source")
-        anova_filtered <- anova_raw %>% dplyr::filter(Source == entry_col) %>%
-          dplyr::rename(DF = "Df", SS = "Sum Sq", MSS = "Mean Sq", F_value = "F value", p.value = "Pr(>F)") %>%
-          dplyr::mutate(Significance = add_significance_stars(p.value)) %>%
-          dplyr::select(Source, DF, SS, MSS, F_value, p.value, Significance)
-        return(anova_filtered %>% dplyr::mutate(across(where(is.numeric), ~ round(., 3))))
-      }, error = function(e) { data.frame(Message = "ANOVA could not be computed.", Error = e$message) })
-    }
-    
     # --- Block E8 Part C: MAIN ANALYSIS ENGINE FUNCTION ---
     run_model_and_extract <- function(df, trait, vc_formula_str, random_formula_str, 
                                       model_type, entry_col, env_col, block_col, rep_col, design) {
@@ -288,14 +271,17 @@ analysisServer <- function(id, home_inputs) {
       }
       
       generate_anova_interpretation <- function(anova_table) {
-        if (nrow(anova_table) == 0 || is.null(anova_table$p.value)) return("")
-        p_val <- anova_table$p.value[1]; if (is.na(p_val)) return("")
-        significance_level <- anova_table$Significance[1]; p_val_text <- paste0("(p = ", round(p_val, 3), ")")
-        if (p_val < 0.05) {
-          signif_word <- switch(significance_level, "***" = "highly significant", "**" = "significant", "*" = "significant", "significant")
-          interpretation <- paste("The ANOVA test shows a", tags$b(signif_word), "difference among genotypes", p_val_text, ". This indicates genuine genetic differences.")
+        if (nrow(anova_table) == 0 || !"p.value" %in% names(anova_table)) return("")
+        
+        significant_terms <- anova_table %>%
+          filter(p.value < 0.05) %>%
+          pull(Source)
+        
+        if (length(significant_terms) == 0) {
+          interpretation <- "The ANOVA test shows <b>no significant fixed effects</b> on the trait (p < 0.05)."
         } else {
-          interpretation <- paste("The ANOVA test shows", tags$b("no significant"), "difference among genotypes", p_val_text, ". Differences may be due to chance.")
+          terms_str <- paste0("<b>", significant_terms, "</b>", collapse = ", ")
+          interpretation <- paste("The ANOVA test shows a <b>statistically significant effect</b> for the following fixed term(s):", terms_str, ". This indicates these factors have a genuine effect on the trait.")
         }
         return(HTML(interpretation))
       }
@@ -304,7 +290,17 @@ analysisServer <- function(id, home_inputs) {
         fit_vc <- lmerTest::lmer(as.formula(vc_formula_str), data = df)
         results$is_singular <- lme4::isSingular(fit_vc)
         results$singularity_message <- if (results$is_singular) "Warning: Model fit is singular." else ""
-        results$anova_table <- extract_custom_anova(df, trait, entry_col, block_col, rep_col, env_col, design)
+        
+        # --- NEW ANOVA LOGIC ---
+        results$anova_table <- tryCatch({
+          anova_raw <- as.data.frame(anova(fit_vc, ddf="Kenward-Roger")) %>% tibble::rownames_to_column("Source")
+          anova_raw %>%
+            dplyr::rename(p.value = `Pr(>F)`) %>%
+            dplyr::mutate(Significance = add_significance_stars(p.value)) %>%
+            dplyr::mutate(across(where(is.numeric), ~ round(., 3)))
+        }, error = function(e) { data.frame(Message = "ANOVA could not be computed.", Error = e$message) })
+        # --- END NEW ANOVA LOGIC ---
+        
         results$anova_interpretation <- generate_anova_interpretation(results$anova_table)
         results$var_comps <- tryCatch({ process_var_comps(fit_vc) }, error = function(e) data.frame(Message="VarComps error"))
         lrt_table_obj <- tryCatch({ process_lrt_table(fit_vc) }, error = function(e) NULL)
@@ -1382,4 +1378,3 @@ analysisServer <- function(id, home_inputs) {
     
   })
 }
-

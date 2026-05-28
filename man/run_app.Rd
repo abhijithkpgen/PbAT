@@ -4,14 +4,8 @@
 \alias{run_app}
 \title{Launch the PBAT Shiny app}
 \usage{
-run_app(...)
-}
-\arguments{
-\item{...}{Passed to \code{\link[shiny:shinyApp]{shiny::shinyApp()}}}
-}
-\value{
-A Shiny app object.
+run_app()
 }
 \description{
-Sets up static resources bundled in the package and starts the app.
+Launch the PBAT Shiny app
 }

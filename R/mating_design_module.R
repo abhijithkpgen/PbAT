@@ -224,7 +224,8 @@ griffing_method1 <- function(df, rep_col = "Rep", male_col = "Male", female_col 
   
   gca <- (Xi. + X.j) / (2*p) - Xbar/(p^2)
   gca_se <- sqrt(((p-1) * MSEAD) / (2*p*p*bc))
-  gca_df <- data.frame(Parent=ptypes, GCA=gca, SE=gca_se, T_value = gca/gca_se)
+  parental_means <- diag(myMatrix)
+  gca_df <- data.frame(Parent=ptypes, Parental_Mean = parental_means, GCA=gca, SE=gca_se, T_value = gca/gca_se)
   gca_df$p_value <- 2 * pt(-abs(gca_df$T_value), df = Df_display[1])
   gca_df <- add_significance_stars_robust(gca_df)
   
@@ -236,6 +237,8 @@ griffing_method1 <- function(df, rep_col = "Rep", male_col = "Male", female_col 
   
   sca_df <- data.frame(expand.grid(Female=ptypes, Male=ptypes), SCA=as.vector(sca))
   sca_df <- sca_df[!is.na(sca_df$SCA),]
+  cross_means_vec <- as.vector(myMatrix)
+  sca_df$Cross_Mean <- cross_means_vec[!is.na(as.vector(sca))]
   sca_df$SE <- sca_se
   sca_df$T_value <- sca_df$SCA / sca_df$SE
   sca_df$p_value <- 2 * pt(-abs(sca_df$T_value), df = Df_display[2])
@@ -288,7 +291,8 @@ griffing_method2 <- function(df, rep_col = "Rep", male_col = "Male", female_col 
   anova_final <- rbind(anova_diallel, anova_error)
   gca <- (Xi. + diag(myMatrix) - 2 * Xbar / p) / (p + 2)
   gca_se <- sqrt(((p - 1) * MSEAD) / (p * (p + 2) * bc))
-  gca_df <- data.frame(Parent=ptypes, GCA=gca, SE=gca_se, T_value=gca/gca_se)
+  parental_means <- diag(myMatrix)
+  gca_df <- data.frame(Parent=ptypes, Parental_Mean = parental_means, GCA=gca, SE=gca_se, T_value=gca/gca_se)
   gca_df$p_value <- 2 * pt(-abs(gca_df$T_value), df = Df[1])
   gca_df <- add_significance_stars_robust(gca_df)
   sca_mat <- myMatrix - (matrix(Xi.+diag(myMatrix),nrow=p,ncol=p,byrow=TRUE) + matrix(Xi.+diag(myMatrix),nrow=p,ncol=p,byrow=FALSE))/(p+2) + 2*Xbar/((p+1)*(p+2))
@@ -296,6 +300,8 @@ griffing_method2 <- function(df, rep_col = "Rep", male_col = "Male", female_col 
   sca_df <- expand.grid(Male=ptypes, Female=ptypes)
   sca_df$SCA <- as.vector(sca_mat)
   sca_df <- sca_df[!is.na(sca_df$SCA), ]
+  cross_means_vec <- as.vector(myMatrix)
+  sca_df$Cross_Mean <- cross_means_vec[!is.na(as.vector(sca_mat))]
   sca_se <- sqrt(((p*p + p + 2) * MSEAD) / ((p + 1) * (p + 2) * bc))
   sca_df$SE <- sca_se
   sca_df$T_value <- sca_df$SCA / sca_df$SE
@@ -362,6 +368,8 @@ griffing_method3 <- function(df, rep_col = "Rep", male_col = "Male", female_col 
   sca_df <- expand.grid(Female=ptypes, Male=ptypes)
   sca_df$SCA <- as.vector(sca)
   sca_df <- sca_df[!is.na(sca_df$SCA), ]
+  cross_means_vec <- as.vector(myMatrix)
+  sca_df$Cross_Mean <- cross_means_vec[!is.na(as.vector(sca))]
   sca_se <- sqrt(((p - 3) * MSEAD) / (2 * (p - 1) * bc))
   sca_df$SE <- sca_se
   sca_df$T_value <- sca_df$SCA / sca_df$SE
@@ -422,7 +430,9 @@ griffing_method4 <- function(df, rep_col, male_col, female_col, trait_col, blk_c
   scaeffmat <- myMatrix - gca_m1 - gca_m2 - mu_hat
   scaeffmat[lower.tri(scaeffmat, diag=TRUE)] <- NA
   sca_tab <- data.frame(expand.grid(Female=ptypes, Male=ptypes), SCA=as.vector(scaeffmat))
-  sca_tab <- sca_tab[!is.na(sca_tab$SCA),]
+  sca_tab <- sca_tab[!is.na(sca_tab$SCA), ]
+  cross_means_vec <- as.vector(myMatrix)
+  sca_tab$Cross_Mean <- cross_means_vec[!is.na(as.vector(scaeffmat))]
   sca_tab$SE <- sqrt(((p-3)*MSEAD)/(bc*(p-1)))
   sca_tab$T_value <- sca_tab$SCA / sca_tab$SE
   sca_tab$p_value <- 2 * pt(-abs(sca_tab$T_value), df = Df[2])
@@ -600,18 +610,32 @@ line_tester_manual <- function(data, line_col, tester_col, rep_col, trait_col, t
     anova_final[numeric_cols] <- lapply(anova_final[numeric_cols], function(x) sprintf("%.2f", x))
     anova_final[is.na(anova_final) | anova_final == "NA"] <- ""
     grand_mean <- mean(crosses$Y)
+    
+    parental_means_lines <- aggregate(Y ~ Line, data = parents, FUN = mean)
+    names(parental_means_lines)[2] <- "Parental_Mean"
+    
+    parental_means_testers <- aggregate(Y ~ Tester, data = parents, FUN = mean)
+    names(parental_means_testers)[2] <- "Parental_Mean"
+    
     emm_lines <- emmeans(model_crosses, ~ Line)
     summary_lines <- as.data.frame(summary(emm_lines))
     gca_lines_out <- data.frame(Line = summary_lines$Line, GCA = summary_lines$emmean - grand_mean, SE = summary_lines$SE)
+    gca_lines_out <- merge(gca_lines_out, parental_means_lines, by = "Line", all.x = TRUE)
     gca_lines_out$`t value` <- gca_lines_out$GCA / gca_lines_out$SE
     gca_lines_out$`Pr(>|t|)` <- 2 * pt(-abs(gca_lines_out$`t value`), df = DF_Error)
     gca_lines_out$Signif <- get_stars(gca_lines_out$`Pr(>|t|)`)
+    
     emm_testers <- emmeans(model_crosses, ~ Tester)
     summary_testers <- as.data.frame(summary(emm_testers))
     gca_testers_out <- data.frame(Tester = summary_testers$Tester, GCA = summary_testers$emmean - grand_mean, SE = summary_testers$SE)
+    gca_testers_out <- merge(gca_testers_out, parental_means_testers, by = "Tester", all.x = TRUE)
     gca_testers_out$`t value` <- gca_testers_out$GCA / gca_testers_out$SE
     gca_testers_out$`Pr(>|t|)` <- 2 * pt(-abs(gca_testers_out$`t value`), df = DF_Error)
     gca_testers_out$Signif <- get_stars(gca_testers_out$`Pr(>|t|)`)
+    
+    cross_means <- aggregate(Y ~ Line + Tester, data = crosses, FUN = mean)
+    names(cross_means)[3] <- "Cross_Mean"
+    
     emm_sca <- emmeans(model_crosses, ~ Line:Tester)
     summary_sca <- as.data.frame(summary(emm_sca))
     summary_sca <- merge(summary_sca, gca_lines_out[, c("Line", "GCA")], by = "Line")
@@ -620,6 +644,7 @@ line_tester_manual <- function(data, line_col, tester_col, rep_col, trait_col, t
     names(summary_sca)[names(summary_sca) == "GCA"] <- "GCA_Tester"
     summary_sca$SCA <- summary_sca$emmean - summary_sca$GCA_Line - summary_sca$GCA_Tester - grand_mean
     sca_out <- data.frame(Line = summary_sca$Line, Tester = summary_sca$Tester, SCA = summary_sca$SCA, SE = summary_sca$SE)
+    sca_out <- merge(sca_out, cross_means, by = c("Line", "Tester"))
     sca_out$`t value` <- sca_out$SCA / sca_out$SE
     sca_out$`Pr(>|t|)` <- 2 * pt(-abs(sca_out$`t value`), df = DF_Error)
     sca_out$Signif <- get_stars(sca_out$`Pr(>|t|)`)
@@ -796,7 +821,12 @@ mating_design_server <- function(id, shared_data) {
           
         } else {
           req(results$anova, results$gca, results$sca)
-          anova <- results$anova %>% tibble::rownames_to_column("Source")
+          anova <- results$anova
+          # The ANOVA table from diallel_partial_manual already has a "Source" column.
+          # We must ensure we don't duplicate it.
+          if (!("Source" %in% names(anova))) {
+            anova <- anova %>% tibble::rownames_to_column("Source")
+          }
           p_gca <- anova$`Pr(>F)`[anova$Source == "GCA"]
           p_sca <- anova$`Pr(>F)`[anova$Source == "SCA"]
           

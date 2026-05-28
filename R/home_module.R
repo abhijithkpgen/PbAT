@@ -75,16 +75,20 @@ homeUI <- function(id) {
           actionButton(ns("go_to_analysis"), "Proceed to Analysis", class = "btn btn-primary btn-block"),
           br(),br(),
           tags$div(style = "font-size: 11px; text-align: center; color: #6c757d;",
-                   HTML("Developed by <b> Abhijith K. P. and collaborators, 2025 </b><br>
-                   ICAR-IARI Assam<br>
-             <a href='mailto:abhijithkpgen@gmail.com'>abhijithkpgen@gmail.com</a>"),
+                   HTML("Developed by <b>Abhijith et al. (2026)</b><br>
+                   ICAR-Indian Agricultural Research Institute, Assam<br>"),
+                   p("Contact for reporting bugs, queries, or feedback:"),
+                   tags$a(href = "mailto:pbatinfo@gmail.com", 
+                          style = "font-weight: bold; color: #1F4E79;",
+                          icon("envelope"), "pbatinfo@gmail.com"),
                    br(), br(),
                    tags$div(
                      class = "custom-footer",
-                     HTML("Copyright &copy; 2025 Abhijith Krishnan. Released under the <a href='https://github.com/abhijithkpgen/PBAT/blob/main/LICENSE' target='_blank'>MIT License</a>.")
+                     HTML("Released under the <a href='https://github.com/abhijithkpgen/PBAT/blob/main/LICENSE' target='_blank'>GPL-3.0 License</a>.")
                    )
           )
       ),
+      
       uiOutput(ns("workflow_overview_ui"))
     )
   )

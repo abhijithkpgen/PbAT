@@ -72,17 +72,17 @@ PbAT includes sample CSV templates for each analysis type. These are available i
 
 ## 💻 Installation & Usage
 
-You can install the development version of PbAT directly from GitHub using `devtools`.
+You can install the R package version of PbAT directly from GitHub using `devtools`.
 
 ```r
 # Install devtools if it's not already installed
 if (!require("devtools")) install.packages("devtools")
 
 # Install PbAT from GitHub
-devtools::install_github("abhijithkpgen/PBAT")
+devtools::install_github("abhijithkpgen/PbAT")
 
 # Load the library
-library(PBAT)
+library(PbAT)
 
 # Run the application
 run_app()
