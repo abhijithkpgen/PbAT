@@ -248,53 +248,69 @@ multivariate_analysis_server <- function(id, shared_data) {
         paste0("Multivariate_Results_", multi_subtype_selected(), "_", Sys.Date(), ".zip")
       },
       content = function(file) {
-        tmp_dir <- tempdir()
+        # 1. Create a clean, isolated temporary subdirectory
+        tmp_dir <- tempfile("multi_zip_")
+        dir.create(tmp_dir)
+        on.exit(unlink(tmp_dir, recursive = TRUE), add = TRUE)
+        
         files <- c()
         
-        if (multi_subtype_selected() == "pca" && !is.null(pca_results()$pca)) {
-          res.pca <- pca_results()$pca
+        tryCatch({
+          if (multi_subtype_selected() == "pca" && !is.null(pca_results()$pca)) {
+            res.pca <- pca_results()$pca
+            
+            gradient_palettes <- list(
+              default = c("#00AFBB", "#E7B800", "#FC4E07"),
+              viridis = c("#440154FF", "#21908CFF", "#FDE725FF"),
+              plasma  = c("#0D0887FF", "#CC4678FF", "#F0F921FF"),
+              grey    = c("grey90", "grey10")
+            )
+            selected_gradient <- gradient_palettes[[input$pca_palette]]
+            
+            p_biplot <- fviz_pca_ind(res.pca, col.ind = "cos2", gradient.cols = selected_gradient, repel = input$pca_repel)
+            p_scree <- fviz_screeplot(res.pca, addlabels = TRUE)
+            p_var <- fviz_pca_var(res.pca, repel = TRUE)
+            
+            # Save static PDFs to completely avoid the Pandoc/saveWidget crash issue
+            fname_biplot <- file.path(tmp_dir, "PCA_Biplot.pdf")
+            pdf(fname_biplot, width = 8, height = 7); print(p_biplot); dev.off()
+            
+            fname_scree <- file.path(tmp_dir, "PCA_Scree.pdf")
+            pdf(fname_scree, width = 8, height = 6); print(p_scree); dev.off()
+            
+            fname_var <- file.path(tmp_dir, "PCA_Contributions.pdf")
+            pdf(fname_var, width = 8, height = 7); print(p_var); dev.off()
+            
+            write.csv(factoextra::get_eigenvalue(res.pca), file.path(tmp_dir, "PCA_Eigenvalues.csv"))
+            write.csv(pca_results()$data, file.path(tmp_dir, "PCA_Input_Data.csv"))
+            
+            files <- c(files, fname_biplot, fname_scree, fname_var, 
+                       file.path(tmp_dir, "PCA_Eigenvalues.csv"), file.path(tmp_dir, "PCA_Input_Data.csv"))
+          }
           
-          gradient_palettes <- list(
-            default = c("#00AFBB", "#E7B800", "#FC4E07"),
-            viridis = c("#440154FF", "#21908CFF", "#FDE725FF"),
-            plasma  = c("#0D0887FF", "#CC4678FF", "#F0F921FF"),
-            grey    = c("grey90", "grey10")
-          )
-          selected_gradient <- gradient_palettes[[input$pca_palette]]
+          if (multi_subtype_selected() == "correlation" && !is.null(corr_data())) {
+            fname_corrplot <- file.path(tmp_dir, "Correlation_MatrixPlot.pdf")
+            pdf(fname_corrplot, width = 8, height = 8)
+            corrplot(cor(corr_data()), method = "number", type = "upper", order = "hclust")
+            dev.off()
+            
+            write.csv(cor(corr_data()), file.path(tmp_dir, "Correlation_Matrix.csv"))
+            files <- c(files, fname_corrplot, file.path(tmp_dir, "Correlation_Matrix.csv"))
+          }
           
-          p_biplot <- fviz_pca_ind(res.pca, col.ind = "cos2", gradient.cols = selected_gradient, repel = input$pca_repel)
-          p_scree <- fviz_screeplot(res.pca, addlabels = TRUE)
-          p_var <- fviz_pca_var(res.pca, repel = TRUE)
+          if (multi_subtype_selected() == "path" && !is.null(path_results())) {
+            fit <- path_results()
+            path_plot <- tidySEM::graph_sem(fit)
+            ggsave(file.path(tmp_dir, "Path_Diagram.pdf"), plot = path_plot, device = "pdf", width = 11, height = 8.5)
+            write.csv(lavaan::parameterEstimates(fit, standardized = TRUE), file.path(tmp_dir, "Path_Coefficients.csv"))
+            files <- c(files, file.path(tmp_dir, "Path_Diagram.pdf"), file.path(tmp_dir, "Path_Coefficients.csv"))
+          }
           
-          saveWidget(ggplotly(p_biplot, tooltip = "all"), file.path(tmp_dir, "PCA_Biplot.html"), selfcontained = TRUE)
-          ggsave(file.path(tmp_dir, "PCA_Biplot.pdf"), p_biplot)
-          
-          ggsave(file.path(tmp_dir, "PCA_Scree.pdf"), p_scree)
-          ggsave(file.path(tmp_dir, "PCA_Contributions.pdf"), p_var)
-          
-          write.csv(factoextra::get_eigenvalue(res.pca), file.path(tmp_dir, "PCA_Eigenvalues.csv"))
-          write.csv(pca_results()$data, file.path(tmp_dir, "PCA_Input_Data.csv"))
-          
-          files <- c(files, file.path(tmp_dir, "PCA_Biplot.html"), file.path(tmp_dir, "PCA_Biplot.pdf"),
-                     file.path(tmp_dir, "PCA_Scree.pdf"), file.path(tmp_dir, "PCA_Contributions.pdf"), 
-                     file.path(tmp_dir, "PCA_Eigenvalues.csv"), file.path(tmp_dir, "PCA_Input_Data.csv"))
-        }
+        }, error = function(e) {
+          showNotification(paste("Error building download zip:", e$message), type = "error")
+        })
         
-        if (multi_subtype_selected() == "correlation" && !is.null(corr_data())) {
-          pdf(file.path(tmp_dir, "Correlation_MatrixPlot.pdf")); corrplot(cor(corr_data()), method="number", type="upper"); dev.off()
-          write.csv(cor(corr_data()), file.path(tmp_dir, "Correlation_Matrix.csv"))
-          files <- c(files, file.path(tmp_dir, "Correlation_MatrixPlot.pdf"),
-                     file.path(tmp_dir, "Correlation_Matrix.csv"))
-        }
-        
-        if (multi_subtype_selected() == "path" && !is.null(path_results())) {
-          fit <- path_results()
-          path_plot <- tidySEM::graph_sem(fit)
-          ggsave(file.path(tmp_dir, "Path_Diagram.pdf"), plot = path_plot, device = "pdf", width = 11, height = 8.5)
-          write.csv(lavaan::parameterEstimates(fit, standardized=TRUE), file.path(tmp_dir, "Path_Coefficients.csv"))
-          files <- c(files, file.path(tmp_dir, "Path_Diagram.pdf"), file.path(tmp_dir, "Path_Coefficients.csv"))
-        }
-        
+        # 2. Compress the isolated files safely using cherry-pick
         zip::zip(zipfile = file, files = files, mode = "cherry-pick")
       }
     )
