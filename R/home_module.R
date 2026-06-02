@@ -85,6 +85,16 @@ homeUI <- function(id) {
                    tags$div(
                      class = "custom-footer",
                      HTML("Released under the <a href='https://github.com/abhijithkpgen/PBAT/blob/main/LICENSE' target='_blank'>GPL-3.0 License</a>.")
+                   ),
+                   
+                   # --- NEW VISITOR COUNTER BADGE (Alternative Provider) ---
+                   tags$div(
+                     style = "margin-top: 15px; display: flex; justify-content: center;",
+                     tags$img(
+                       src = "https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fpbat.online&label=Visitors&labelColor=%231F4E79&countColor=%233FA796", 
+                       alt = "Visitor Count",
+                       style = "border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+                     )
                    )
           )
       ),
