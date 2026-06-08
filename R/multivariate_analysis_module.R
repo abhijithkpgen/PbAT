@@ -97,7 +97,7 @@ multivariate_analysis_server <- function(id, shared_data) {
               step_block("Step 1: Select Dependent and Independent Traits",
                          selectInput(ns("multi_path_dep"), "Dependent Trait (Y)", choices = choices_numeric),
                          selectInput(ns("multi_path_indep"), "Independent Traits (X)",
-                                     choices = setdiff(choices_numeric, input$multi_path_dep),
+                                     choices = setdiff(choices_numeric, choices_numeric[1]), # FIX: Statically set initial diff
                                      multiple = TRUE)
               ),
               step_block("Step 2: Run and Download",
