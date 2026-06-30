@@ -4,11 +4,7 @@ homeUI <- function(id) {
   ns <- NS(id)
   
   tagList(
-    # Absolutely positioned container for the GIF
-    tags$div(
-      style = "position: absolute; top: 120px; right: 0px; z-index: 1;",
-      tags$img(src = "www/pbat_loop.gif", style = "width: 100%; max-width: 250px; height: auto;")
-    ),
+   
     
     # Original container for the interactive cards
     div(
