@@ -14,7 +14,7 @@ homeUI <- function(id) {
     div(
       class = "home-container",
       div(class = "card-panel",
-          # This div creates the box around the radio buttons
+          # Workflow selection box
           div(class = "workflow-box",
               radioButtons(
                 ns("analysis_mode"),
@@ -35,7 +35,7 @@ homeUI <- function(id) {
               )
           ),
           
-          # --- Conditional UIs for workflow-specific settings ---
+          # Conditional UIs for workflow-specific settings
           conditionalPanel(
             condition = paste0("input['", ns("analysis_mode"), "'] == 'design_exp'"),
             selectInput(ns("design_type_home"), "Select Design Type",
@@ -64,7 +64,6 @@ homeUI <- function(id) {
             selectInput(ns("md_mating_design"), "Select Mating Design", choices = c("Griffing Method I (Full Diallel: Parents, F1s, Reciprocals)" = "griffing_m1", "Griffing Method II (Parents & F1s, No Reciprocals)" = "griffing_m2", "Griffing Method III (F1s & Reciprocals, No Parents)" = "griffing_m3", "Griffing Method IV (F1s Only, No Parents, No Reciprocals)" = "griffing_m4", "Partial Diallel" = "diallel_partial", "Line x Tester" = "line_tester"))
           ),
           
-          # --- MODIFIED: File Input is now at the bottom for relevant modes ---
           conditionalPanel(
             condition = paste0("input['", ns("analysis_mode"), "'] != 'design_exp'"),
             div(class="file-upload-area",
@@ -87,7 +86,7 @@ homeUI <- function(id) {
                      HTML("Released under the <a href='https://github.com/abhijithkpgen/PBAT/blob/main/LICENSE' target='_blank'>GPL-3.0 License</a>.")
                    ),
                    
-                   # Visitor Counter Badge
+                   # Visitor Counter
                    tags$div(
                      style = "margin-top: 15px; display: flex; justify-content: center;",
                      tags$img(
@@ -99,26 +98,47 @@ homeUI <- function(id) {
           )
       ),
       
-      # --- NEW SIDE-BY-SIDE LAYOUT: Workflow + Citation Card ---
+      # --- RESPONSIVE SIDE-BY-SIDE LAYOUT ---
       div(
-        style = "display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; margin-top: 20px; padding-right: 5%;",
+        style = "display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; margin-top: 20px; padding-right: 2%;",
         
-        # Left: Workflow Overview (65% width)
+        # Left: Workflow Overview (Responsive Growth)
         div(
-          style = "flex: 2; min-width: 350px; max-width: 700px;",
+          style = "flex: 1 1 400px; max-width: 700px;",
           uiOutput(ns("workflow_overview_ui"))
         ),
         
-        # Right: Official Citation Card (35% width, centered leftwards)
+        # Right Side: The Official Citation Card (Enhanced Design)
         div(
-          style = "flex: 1; min-width: 280px; max-width: 350px; margin-left: auto; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-top: 4px solid #1F4E79; box-sizing: border-box;",
-          tags$h5(icon("quote-right"), " How to Cite", style = "color: #1F4E79; font-weight: bold; margin-top: 0; font-size: 16px;"),
-          tags$p(
-            style = "font-size: 13px; line-height: 1.5; color: #555; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word;",
-            HTML("Abhijith, K. P., K. K. Vinod, R. K. Ellur, K. T. Ravikiran, R. K. Saxena, V. Muthusamy, and S. G. Krishnan. (2026).<br><br>
-                 <b>PbAT: A user‐friendly R/Shiny platform for data‐driven decision support in crop improvement.</b><br><br>
-                 <i>Applications in Plant Sciences</i>, 14, e70068.<br>
-                 <a href='https://doi.org/10.1002/aps3.70068' target='_blank' style='color: #3FA796; font-weight: bold; word-break: break-all;'>https://doi.org/10.1002/aps3.70068</a>")
+          style = "flex: 1 1 300px; max-width: 350px; margin-left: auto; 
+                   background: linear-gradient(135deg, #ffffff 0%, #f7f9fc 100%); 
+                   padding: 25px; border-radius: 12px; 
+                   box-shadow: 0 8px 20px rgba(0,0,0,0.1); 
+                   border-left: 6px solid #1F4E79; 
+                   transition: transform 0.3s ease, box-shadow 0.3s ease; 
+                   box-sizing: border-box;",
+          
+          # Adding a small hover effect via CSS injection
+          tags$style("
+            .citation-card:hover { transform: translateY(-5px); box-shadow: 0 12px 25px rgba(0,0,0,0.15); }
+          "),
+          div(class = "citation-card",
+              
+              tags$h5(icon("quote-right"), " How to Cite PbAT", 
+                      style = "color: #1F4E79; font-weight: 800; margin-top: 0; font-size: 17px; margin-bottom: 15px;"),
+              
+              tags$p(
+                style = "font-size: 13.5px; line-height: 1.6; color: #444; text-align: justify; margin-bottom: 15px;",
+                "Abhijith, K. P., K. K. Vinod, R. K. Ellur, K. T. Ravikiran, R. K. Saxena, V. Muthusamy, and S. G. Krishnan. (2026). ",
+                tags$b("PbAT: A user‐friendly R/Shiny platform for data‐driven decision support in crop improvement."), 
+                " Applications in Plant Sciences, 14, e70068."
+              ),
+              
+              tags$a(href = "https://doi.org/10.1002/aps3.70068", target = "_blank", 
+                     style = "display: inline-block; padding: 8px 12px; background-color: #1F4E79; color: #ffffff; 
+                              border-radius: 5px; text-decoration: none; font-size: 12px; font-weight: bold; 
+                              transition: background 0.2s;",
+                     "View Official Publication")
           )
         )
       )
@@ -126,7 +146,6 @@ homeUI <- function(id) {
   )
 }
 
-# (Server logic remains unchanged from your previous provided version)
 homeServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
