@@ -76,7 +76,7 @@ homeUI <- function(id) {
           br(),br(),
           tags$div(style = "font-size: 11px; text-align: center; color: #6c757d;",
                    HTML("Developed by <b>Abhijith et al. (2026)</b><br>
-                   ICAR-Indian Agricultural Research Institute, Assam<br>"),
+                    ICAR-Indian Agricultural Research Institute, Assam<br>"),
                    p("Contact for reporting bugs, queries, or feedback:"),
                    tags$a(href = "mailto:pbatinfo@gmail.com", 
                           style = "font-weight: bold; color: #1F4E79;",
@@ -87,7 +87,7 @@ homeUI <- function(id) {
                      HTML("Released under the <a href='https://github.com/abhijithkpgen/PBAT/blob/main/LICENSE' target='_blank'>GPL-3.0 License</a>.")
                    ),
                    
-                   # --- NEW VISITOR COUNTER BADGE (Alternative Provider) ---
+                   # Visitor Counter Badge
                    tags$div(
                      style = "margin-top: 15px; display: flex; justify-content: center;",
                      tags$img(
@@ -99,11 +99,34 @@ homeUI <- function(id) {
           )
       ),
       
-      uiOutput(ns("workflow_overview_ui"))
+      # --- NEW SIDE-BY-SIDE LAYOUT: Workflow + Citation Card ---
+      div(
+        style = "display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; margin-top: 20px; padding-right: 5%;",
+        
+        # Left: Workflow Overview (65% width)
+        div(
+          style = "flex: 2; min-width: 350px; max-width: 700px;",
+          uiOutput(ns("workflow_overview_ui"))
+        ),
+        
+        # Right: Official Citation Card (35% width, centered leftwards)
+        div(
+          style = "flex: 1; min-width: 280px; max-width: 350px; margin-left: auto; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-top: 4px solid #1F4E79; box-sizing: border-box;",
+          tags$h5(icon("quote-right"), " How to Cite", style = "color: #1F4E79; font-weight: bold; margin-top: 0; font-size: 16px;"),
+          tags$p(
+            style = "font-size: 13px; line-height: 1.5; color: #555; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word;",
+            HTML("Abhijith, K. P., K. K. Vinod, R. K. Ellur, K. T. Ravikiran, R. K. Saxena, V. Muthusamy, and S. G. Krishnan. (2026).<br><br>
+                 <b>PbAT: A user‐friendly R/Shiny platform for data‐driven decision support in crop improvement.</b><br><br>
+                 <i>Applications in Plant Sciences</i>, 14, e70068.<br>
+                 <a href='https://doi.org/10.1002/aps3.70068' target='_blank' style='color: #3FA796; font-weight: bold; word-break: break-all;'>https://doi.org/10.1002/aps3.70068</a>")
+          )
+        )
+      )
     )
   )
 }
 
+# (Server logic remains unchanged from your previous provided version)
 homeServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
@@ -122,10 +145,8 @@ homeServer <- function(id) {
     }, ignoreNULL = FALSE, ignoreInit = TRUE) 
     
     observeEvent(input$go_to_analysis, {
-      
       mode <- input$analysis_mode
       df <- NULL
-      
       if (mode != "design_exp") {
         req(input$file)
         df <- readr::read_csv(input$file$datapath, na = c("", "NA"), show_col_types = FALSE)
@@ -146,9 +167,7 @@ homeServer <- function(id) {
     })
     
     output$workflow_overview_ui <- renderUI({
-      
       mode <- input$analysis_mode
-      
       panel_content <- switch(
         mode,
         "design_exp" = tagList(
