@@ -1,5 +1,4 @@
 # multivariate_analysis_module.R
-#
 # This file contains the UI and Server logic for the updated Multivariate Analysis module.
 # PCA plots have been updated to use plotly for interactivity.
 # Path analysis plotting is now handled by the tidySEM package.
@@ -15,13 +14,13 @@ library(tidySEM)
 library(DT)
 library(plotly)
 library(htmlwidgets)
+library(ggplot2)
 
 # ===================================================================
 # MODULE UI FUNCTION
 # ===================================================================
 multivariate_analysis_ui <- function(id) {
   ns <- NS(id)
-  
   tabPanel("Multivariate Analysis",
            sidebarLayout(
              sidebarPanel(
@@ -69,16 +68,26 @@ multivariate_analysis_server <- function(id, shared_data) {
               step_block("Step 1: Select Traits for PCA",
                          checkboxGroupInput(ns("multi_pca_traits"), "Traits for PCA", choices = choices_numeric, selected = choices_numeric)
               ),
-              step_block("Step 2: Plot Options",
-                         selectInput(ns("pca_palette"), "Biplot Color Palette", 
-                                     choices = c("Default" = "default", "Viridis" = "viridis", "Plasma" = "plasma", "Grey" = "grey"), 
+              step_block("Step 2: Plot Aesthetics & Customization",
+                         selectInput(ns("pca_geom"), "Display Elements", 
+                                     choices = c("Points & Labels" = "point,text", "Points Only" = "point", "Labels Only" = "text"), 
+                                     selected = "point,text"),
+                         selectInput(ns("pca_palette"), "Color Palette",
+                                     choices = c("Default" = "default", "Viridis" = "viridis", "Plasma" = "plasma", "Grey" = "grey"),
                                      selected = "default"),
-                         checkboxInput(ns("pca_repel"), "Use Text Repel for Labels", value = TRUE)
+                         selectInput(ns("pca_theme"), "Plot Theme",
+                                     choices = c("Minimal" = "minimal", "Classic" = "classic", "Black & White" = "bw"),
+                                     selected = "minimal"),
+                         fluidRow(
+                           column(6, numericInput(ns("pca_point_size"), "Point Size", value = 2, min = 0.5, max = 5, step = 0.5)),
+                           column(6, numericInput(ns("pca_label_size"), "Label Size", value = 3.5, min = 1, max = 10, step = 0.5))
+                         ),
+                         checkboxInput(ns("pca_repel"), "Prevent Label Overlap (Highly Recommended for PDF Download)", value = TRUE)
               ),
               step_block("Step 3: Run and Download",
-                         actionButton(ns("multi_run_pca"), "Run PCA", class = "btn btn-success"),
+                         actionButton(ns("multi_run_pca"), "Run PCA", class = "btn btn-success", style="width:100%; margin-bottom:10px;"),
                          uiOutput(ns("multi_pca_status")), br(),
-                         downloadButton(ns("multi_download"), "Download Results (ZIP)", class = "btn btn-primary")
+                         downloadButton(ns("multi_download"), "Download Results (ZIP)", class = "btn btn-primary", style="width:100%;")
               )
             )
           } else if (multi_subtype_selected() == "correlation") {
@@ -87,9 +96,9 @@ multivariate_analysis_server <- function(id, shared_data) {
                          checkboxGroupInput(ns("multi_corr_traits"), "Traits for Correlation", choices = choices_numeric, selected = choices_numeric)
               ),
               step_block("Step 2: Run and Download",
-                         actionButton(ns("multi_run_corr"), "Run Correlation Analysis", class = "btn btn-success"),
+                         actionButton(ns("multi_run_corr"), "Run Correlation Analysis", class = "btn btn-success", style="width:100%; margin-bottom:10px;"),
                          uiOutput(ns("multi_corr_status")), br(),
-                         downloadButton(ns("multi_download"), "Download Results (ZIP)", class = "btn btn-primary")
+                         downloadButton(ns("multi_download"), "Download Results (ZIP)", class = "btn btn-primary", style="width:100%;")
               )
             )
           } else if (multi_subtype_selected() == "path") {
@@ -97,13 +106,13 @@ multivariate_analysis_server <- function(id, shared_data) {
               step_block("Step 1: Select Dependent and Independent Traits",
                          selectInput(ns("multi_path_dep"), "Dependent Trait (Y)", choices = choices_numeric),
                          selectInput(ns("multi_path_indep"), "Independent Traits (X)",
-                                     choices = setdiff(choices_numeric, choices_numeric[1]), # FIX: Statically set initial diff
+                                     choices = setdiff(choices_numeric, choices_numeric[1]),
                                      multiple = TRUE)
               ),
               step_block("Step 2: Run and Download",
-                         actionButton(ns("multi_run_path"), "Run Path Analysis", class = "btn btn-success"),
+                         actionButton(ns("multi_run_path"), "Run Path Analysis", class = "btn btn-success", style="width:100%; margin-bottom:10px;"),
                          uiOutput(ns("multi_path_status")), br(),
-                         downloadButton(ns("multi_download"), "Download Results (ZIP)", class = "btn btn-primary")
+                         downloadButton(ns("multi_download"), "Download Results (ZIP)", class = "btn btn-primary", style="width:100%;")
               )
             )
           }
@@ -115,9 +124,9 @@ multivariate_analysis_server <- function(id, shared_data) {
       req(multi_subtype_selected())
       if (multi_subtype_selected() == "pca") {
         tabsetPanel(
-          tabPanel("Individual Biplot", plotlyOutput(ns("multi_pca_biplot"), height = "600px")),
+          tabPanel("Individual Biplot", plotlyOutput(ns("multi_pca_biplot"), height = "650px")),
           tabPanel("Scree Plot", plotlyOutput(ns("multi_pca_scree"), height = "600px")),
-          tabPanel("Variable Contributions", plotOutput(ns("multi_pca_varcontrib"), height = "600px")),
+          tabPanel("Variable Contributions", plotOutput(ns("multi_pca_varcontrib"), height = "650px")),
           tabPanel("Summary Table", DT::DTOutput(ns("multi_pca_eigen")))
         )
       } else if (multi_subtype_selected() == "correlation") {
@@ -162,28 +171,47 @@ multivariate_analysis_server <- function(id, shared_data) {
             plasma  = c("#0D0887FF", "#CC4678FF", "#F0F921FF"),
             grey    = c("grey90", "grey10")
           )
-          selected_gradient <- gradient_palettes[[input$pca_palette]]
           
-          p <- fviz_pca_ind(res.pca, 
-                            col.ind = "cos2", 
+          selected_gradient <- gradient_palettes[[input$pca_palette]]
+          geom_setting <- unlist(strsplit(input$pca_geom, ","))
+          
+          p <- fviz_pca_ind(res.pca,
+                            geom.ind = geom_setting,
+                            col.ind = "cos2",
+                            pointsize = input$pca_point_size,
+                            labelsize = input$pca_label_size,
                             gradient.cols = selected_gradient,
                             repel = input$pca_repel)
           
+          # Apply the user-selected theme
+          p <- p + switch(input$pca_theme,
+                          "minimal" = theme_minimal(),
+                          "classic" = theme_classic(),
+                          "bw" = theme_bw())
+          
+          # Convert to interactive plotly (Note: Plotly may ignore repel, but it works in PDF)
           ggplotly(p, tooltip = "all")
         })
         
         output$multi_pca_scree <- renderPlotly({
-          p <- fviz_screeplot(res.pca, addlabels = TRUE)
+          p <- fviz_screeplot(res.pca, addlabels = TRUE) + 
+            switch(input$pca_theme, "minimal" = theme_minimal(), "classic" = theme_classic(), "bw" = theme_bw())
           ggplotly(p)
         })
         
         output$multi_pca_varcontrib <- renderPlot({
-          fviz_pca_var(res.pca, repel = TRUE)
+          fviz_pca_var(res.pca, 
+                       col.var = "contrib", 
+                       gradient.cols = c("black", "blue", "red"),
+                       repel = input$pca_repel, 
+                       labelsize = input$pca_label_size) + 
+            switch(input$pca_theme, "minimal" = theme_minimal(), "classic" = theme_classic(), "bw" = theme_bw())
         })
         
         output$multi_pca_eigen <- DT::renderDT({
           datatable(round(factoextra::get_eigenvalue(res.pca), 2), rownames = TRUE, options = list(dom = 't'))
         })
+        
         output$multi_pca_status <- renderUI({ span(style = "color: green;", icon("check"), " PCA Completed") })
       }, error = function(e) {
         showModal(modalDialog(title = "PCA Error", e$message))
@@ -228,7 +256,6 @@ multivariate_analysis_server <- function(id, shared_data) {
         fit <- lavaan::sem(model_str, data = df_path, meanstructure = TRUE)
         path_results(fit)
         
-        # New code using tidySEM
         output$multi_path_diagram <- renderPlot({
           tidySEM::graph_sem(fit)
         })
@@ -248,7 +275,7 @@ multivariate_analysis_server <- function(id, shared_data) {
         paste0("Multivariate_Results_", multi_subtype_selected(), "_", Sys.Date(), ".zip")
       },
       content = function(file) {
-        # 1. Create a clean, isolated temporary subdirectory
+        # Create a clean, isolated temporary subdirectory
         tmp_dir <- tempfile("multi_zip_")
         dir.create(tmp_dir)
         on.exit(unlink(tmp_dir, recursive = TRUE), add = TRUE)
@@ -265,26 +292,42 @@ multivariate_analysis_server <- function(id, shared_data) {
               plasma  = c("#0D0887FF", "#CC4678FF", "#F0F921FF"),
               grey    = c("grey90", "grey10")
             )
+            
             selected_gradient <- gradient_palettes[[input$pca_palette]]
+            geom_setting <- unlist(strsplit(input$pca_geom, ","))
+            selected_theme <- switch(input$pca_theme, "minimal" = theme_minimal(), "classic" = theme_classic(), "bw" = theme_bw())
             
-            p_biplot <- fviz_pca_ind(res.pca, col.ind = "cos2", gradient.cols = selected_gradient, repel = input$pca_repel)
-            p_scree <- fviz_screeplot(res.pca, addlabels = TRUE)
-            p_var <- fviz_pca_var(res.pca, repel = TRUE)
+            # Re-build plots exactly as configured for the pristine PDF output
+            p_biplot <- fviz_pca_ind(res.pca, 
+                                     geom.ind = geom_setting,
+                                     pointsize = input$pca_point_size,
+                                     labelsize = input$pca_label_size,
+                                     col.ind = "cos2", 
+                                     gradient.cols = selected_gradient, 
+                                     repel = input$pca_repel) + selected_theme
             
-            # Save static PDFs to completely avoid the Pandoc/saveWidget crash issue
+            p_scree <- fviz_screeplot(res.pca, addlabels = TRUE) + selected_theme
+            
+            p_var <- fviz_pca_var(res.pca, 
+                                  col.var = "contrib", 
+                                  gradient.cols = c("black", "blue", "red"),
+                                  repel = input$pca_repel, 
+                                  labelsize = input$pca_label_size) + selected_theme
+            
+            # Save static PDFs
             fname_biplot <- file.path(tmp_dir, "PCA_Biplot.pdf")
-            pdf(fname_biplot, width = 8, height = 7); print(p_biplot); dev.off()
+            pdf(fname_biplot, width = 10, height = 8); print(p_biplot); dev.off()
             
             fname_scree <- file.path(tmp_dir, "PCA_Scree.pdf")
             pdf(fname_scree, width = 8, height = 6); print(p_scree); dev.off()
             
             fname_var <- file.path(tmp_dir, "PCA_Contributions.pdf")
-            pdf(fname_var, width = 8, height = 7); print(p_var); dev.off()
+            pdf(fname_var, width = 10, height = 8); print(p_var); dev.off()
             
             write.csv(factoextra::get_eigenvalue(res.pca), file.path(tmp_dir, "PCA_Eigenvalues.csv"))
             write.csv(pca_results()$data, file.path(tmp_dir, "PCA_Input_Data.csv"))
             
-            files <- c(files, fname_biplot, fname_scree, fname_var, 
+            files <- c(files, fname_biplot, fname_scree, fname_var,
                        file.path(tmp_dir, "PCA_Eigenvalues.csv"), file.path(tmp_dir, "PCA_Input_Data.csv"))
           }
           
@@ -310,11 +353,10 @@ multivariate_analysis_server <- function(id, shared_data) {
           showNotification(paste("Error building download zip:", e$message), type = "error")
         })
         
-        # 2. Compress the isolated files safely using cherry-pick
+        # Compress the isolated files safely using cherry-pick
         zip::zip(zipfile = file, files = files, mode = "cherry-pick")
       }
     )
     
   })
 }
-
