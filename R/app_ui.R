@@ -1,5 +1,4 @@
 # R/app_ui.R
-
 app_ui <- function() {
   navbarPage(
     title = div(
@@ -80,7 +79,6 @@ app_ui <- function() {
           .navbar-nav {
             margin-left: 50px !important; /* Adjust this value for more/less space */
           }
-
       /* --- NEW: Custom class for the active navbar tab --- */
       .custom-active-tab {
         font-weight: 700 !important;
@@ -122,7 +120,6 @@ app_ui <- function() {
         box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         transform: translateY(-2px);
       }
-
       /* --- Workflow Selection Box --- */
       .workflow-box .shiny-input-radiogroup > label {
         font-size: 22px;
@@ -177,7 +174,6 @@ app_ui <- function() {
       .file-upload-area:hover {
         background-color: #E3F2FD;
       }
-
       /* --- Tabs --- */
       .nav-tabs .nav-link {
         border-bottom: 2px solid transparent;
@@ -196,7 +192,6 @@ app_ui <- function() {
         border-radius: 4px;
         font-size: 13px;
       }
-
       /* --- Workflow Overview Styling --- */
       .workflow-overview ol {
         list-style: none;
@@ -226,12 +221,21 @@ app_ui <- function() {
         flex-shrink: 0;
       }
       
-    ")))
+      /* --- Video Tutorial Cards Hover Effect --- */
+      .video-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .video-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.15) !important;
+      }
+      
+      ")))
     ),
     
     tabPanel("Home", homeUI(id = "home")),
     
-    designExperimentUI(id = "design_experiment"), 
+    designExperimentUI(id = "design_experiment"),
     
     navbarMenu("Experimental Design",
                analysisUI(id = "eda")[[1]], 
@@ -246,7 +250,7 @@ app_ui <- function() {
     
     multivariate_analysis_ui(id = "multi"),
     
-    # <<< START OF MODIFIED SECTION >>>
+    # <<< ABOUT TAB >>>
     tabPanel("About",
              fluidPage(
                div(style = "padding: 30px;",
@@ -277,7 +281,7 @@ app_ui <- function() {
                                   
                                   div(
                                     h4("For the PbAT Application:", style="color:#1F4E79;"),
-                                    tags$blockquote("Abhijith, K. P., K. K. Vinod, R. K. Ellur, K. T. Ravikiran, R. K. Saxena, V. Muthusamy, and S. G. Krishnan. (2026). PbAT: A user‐friendly R/Shiny platform for data‐driven decision support in crop improvement. Applications in Plant Sciences, 14, e70068.")
+                                    tags$blockquote("Abhijith, K. P., K. K. Vinod, R. K. Ellur, K. T. Ravikiran, R. K. Saxena, V. Muthusamy, and S. G. Krishnan. (2026). PbAT: A user friendly R/Shiny platform for data driven decision support in crop improvement. Applications in Plant Sciences, 14, e70068.")
                                   ),
                                   
                                   div(
@@ -292,7 +296,7 @@ app_ui <- function() {
                                   
                                   div(
                                     h4("For Mixed Model Analysis:", style="color:#1F4E79;"),
-                                    tags$blockquote("Bates, D., Mchler, M., Bolker, B., & Walker, S. (2015). Fitting Linear Mixed-Effects Models Using lme4. Journal of Statistical Software, 67(1), 1-48.")
+                                    tags$blockquote("Bates, D., Mächler, M., Bolker, B., & Walker, S. (2015). Fitting Linear Mixed-Effects Models Using lme4. Journal of Statistical Software, 67(1), 1-48.")
                                   ),
                                   
                                   div(
@@ -310,8 +314,82 @@ app_ui <- function() {
                )
              )
     ),
-    # <<< END OF MODIFIED SECTION >>>
     
+    # <<< NEW TUTORIALS TAB (3-COLUMN COMPACT LAYOUT) >>>
+    tabPanel("Tutorials",
+             fluidPage(
+               div(style = "padding: 30px; max-width: 1400px; margin: 0 auto;",
+                   h2(icon("youtube", class = "fab"), " Video Tutorials", style = "color: #1F4E79; font-weight: bold; margin-bottom: 5px;"),
+                   p("Watch these step-by-step guides to understand how to prepare your data and perform analysis. ", 
+                     tags$b("Tip: Click the 'Fullscreen' icon in the bottom right corner of any video to enlarge it."), 
+                     style = "font-size: 15px; color: #555; margin-bottom: 30px;"),
+                   
+                   # Row 1
+                   fluidRow(
+                     column(4,
+                            div(class = "video-card", style = "margin-bottom: 30px; padding: 15px; background-color: #FFFFFF; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); border-top: 4px solid #3FA796;",
+                                h5("1. Design Your Trial", style="color:#1F4E79; font-weight:bold; margin-top:0; font-size: 16px;"),
+                                p("Learn how to design a plant breeding trial and generate field layouts.", style="font-size: 12px; color: #666;"),
+                                tags$div(style = "position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;",
+                                         tags$iframe(src = "https://www.youtube.com/embed/obwfvVxWULI", style = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;", allowfullscreen = NA)
+                                )
+                            )
+                     ),
+                     column(4,
+                            div(class = "video-card", style = "margin-bottom: 30px; padding: 15px; background-color: #FFFFFF; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); border-top: 4px solid #3FA796;",
+                                h5("2. Trait Explorer", style="color:#1F4E79; font-weight:bold; margin-top:0; font-size: 16px;"),
+                                p("Curate your data, perform outlier analysis, and visualize spatial trends.", style="font-size: 12px; color: #666;"),
+                                tags$div(style = "position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;",
+                                         tags$iframe(src = "https://www.youtube.com/embed/jLcn08iG9gw", style = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;", allowfullscreen = NA)
+                                )
+                            )
+                     ),
+                     column(4,
+                            div(class = "video-card", style = "margin-bottom: 30px; padding: 15px; background-color: #FFFFFF; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); border-top: 4px solid #3FA796;",
+                                h5("3. Experimental Design Analysis", style="color:#1F4E79; font-weight:bold; margin-top:0; font-size: 16px;"),
+                                p("Perform linear mixed models, generate BLUEs/BLUPs, and view diagnostics.", style="font-size: 12px; color: #666;"),
+                                tags$div(style = "position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;",
+                                         tags$iframe(src = "https://www.youtube.com/embed/f6a82yrbR3c", style = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;", allowfullscreen = NA)
+                                )
+                            )
+                     )
+                   ),
+                   
+                   # Row 2
+                   fluidRow(
+                     column(4,
+                            div(class = "video-card", style = "margin-bottom: 30px; padding: 15px; background-color: #FFFFFF; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); border-top: 4px solid #3FA796;",
+                                h5("4. Stability Analysis", style="color:#1F4E79; font-weight:bold; margin-top:0; font-size: 16px;"),
+                                p("Perform AMMI and GGE biplot analysis for multi-environment trials.", style="font-size: 12px; color: #666;"),
+                                tags$div(style = "position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;",
+                                         tags$iframe(src = "https://www.youtube.com/embed/-VA_RWqC1eE", style = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;", allowfullscreen = NA)
+                                )
+                            )
+                     ),
+                     column(4,
+                            div(class = "video-card", style = "margin-bottom: 30px; padding: 15px; background-color: #FFFFFF; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); border-top: 4px solid #3FA796;",
+                                h5("5. Multivariate Analysis", style="color:#1F4E79; font-weight:bold; margin-top:0; font-size: 16px;"),
+                                p("Learn how to conduct PCA, Correlation, and Path analysis.", style="font-size: 12px; color: #666;"),
+                                tags$div(style = "position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;",
+                                         tags$iframe(src = "https://www.youtube.com/embed/pRT17EjHCOM", style = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;", allowfullscreen = NA)
+                                )
+                            )
+                     ),
+                     column(4,
+                            div(class = "video-card", style = "margin-bottom: 30px; padding: 15px; background-color: #FFFFFF; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); border-top: 4px solid #3FA796;",
+                                h5("6. Mating Design Analysis", style="color:#1F4E79; font-weight:bold; margin-top:0; font-size: 16px;"),
+                                p("Estimate GCA/SCA using Line x Tester and Griffing Diallel methods.", style="font-size: 12px; color: #666;"),
+                                tags$div(style = "position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;",
+                                         tags$iframe(src = "https://www.youtube.com/embed/PTAxnGZWr1o", style = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;", allowfullscreen = NA)
+                                )
+                            )
+                     )
+                   )
+               )
+             )
+    ),
+    
+    # <<< HELP & GUIDE TAB >>>
     tabPanel("Help & Guide",
              fluidPage(
                div(style = "padding: 30px;",
@@ -351,7 +429,6 @@ app_ui <- function() {
                                     
                                     tags$li(HTML("<b>4. Be Patient:</b><br>A complex mixed-model analysis on a large dataset can take some time. After clicking 'Run,' please allow up to a minute for the server to process before assuming there is an error.")),
                                     tags$li(HTML("<b>5. Use the R Package Locally:</b><br>For very large datasets or complex multi-trait analyses, consider installing the PbAT R package  and running it on your own computer for the smoothest and fastest experience."))
-                                    
                                     
                                   )
                               )
