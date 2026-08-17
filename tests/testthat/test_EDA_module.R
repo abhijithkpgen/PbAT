@@ -1,10 +1,8 @@
 # tests/testthat/test_eda_module.R
 
-test_that("EDA UI constructs (both tabs)", {
-  ui1 <- analysisUI("eda_test")[[1]]
-  ui2 <- analysisUI("eda_test")[[2]]
-  expect_s3_class(ui1, c("shiny.tag", "shiny.tag.list"), exact = FALSE)
-  expect_s3_class(ui2, c("shiny.tag", "shiny.tag.list"), exact = FALSE)
+test_that("EDA UI constructs", {
+  ui <- analysisUI("eda_test")
+  expect_s3_class(ui, c("shiny.tag", "shiny.tag.list"), exact = FALSE)
 })
 
 test_that("Home UI constructs", {

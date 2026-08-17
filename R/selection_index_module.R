@@ -160,7 +160,7 @@ selection_index_server <- function(id, raw_data) {
       on.exit(waiter_hide())
       
       tryCatch({
-        library(metan)
+        requireNamespace("metan", quietly = TRUE)
         
         df_model <- as.data.frame(raw_data())
         df_model[[gen]] <- as.factor(df_model[[gen]])
@@ -236,7 +236,7 @@ selection_index_server <- function(id, raw_data) {
         
         # Generate Custom Ranked Bar Plot
         if (method %in% c("mgidi", "fai_blup", "sh") && !is.null(si_res$table)) {
-           library(ggplot2)
+           requireNamespace("ggplot2", quietly = TRUE)
            score_df <- si_res$table
            score_col <- if(method == "mgidi") "MGIDI" else if(method == "fai_blup") "FAI" else "Index"
            
