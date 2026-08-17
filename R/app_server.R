@@ -63,6 +63,7 @@ app_server <- function(input, output, session) {
   stability_shared_data <- reactiveValues(file_data = NULL, stab_subtype = NULL)
   mating_shared_data <- reactiveValues(file_data = NULL, mating_design = NULL)
   multi_shared_data  <- reactiveValues(file_data = NULL, multi_subtype = NULL)
+  si_shared_data     <- reactiveValues(file_data = NULL)
   
   # --- Dynamic Tab Navigation (Hide/Show Tabs) ---
   observe({
@@ -72,6 +73,7 @@ app_server <- function(input, output, session) {
     hideTab("main_navbar", "Stability Analysis")
     hideTab("main_navbar", "Mating Design Analysis")
     hideTab("main_navbar", "Multivariate Analysis")
+    hideTab("main_navbar", "Selection Index")
   })
   
   # --- Observer to Route Data and Switch Tabs ---
@@ -86,6 +88,7 @@ app_server <- function(input, output, session) {
     hideTab("main_navbar", "Stability Analysis")
     hideTab("main_navbar", "Mating Design Analysis")
     hideTab("main_navbar", "Multivariate Analysis")
+    hideTab("main_navbar", "Selection Index")
     
     # Show and select the right tab(s)
     if (mode == "design_exp") {
@@ -96,7 +99,7 @@ app_server <- function(input, output, session) {
     } else if (mode == "eda") {
       eda_shared_data(home_inputs())
       showTab("main_navbar", "Experimental Design")
-      updateNavbarPage(session, "main_navbar", selected = "Analysis 1")
+      updateNavbarPage(session, "main_navbar", selected = "Experimental Design")
       
     } else if (mode == "trait_explorer") {
       trait_explorer_shared_data(home_inputs())
@@ -126,15 +129,45 @@ app_server <- function(input, output, session) {
       multi_shared_data$multi_subtype <- home_inputs()$multi_subtype
       showTab("main_navbar", "Multivariate Analysis")
       updateNavbarPage(session, "main_navbar", selected = "Multivariate Analysis")
+      
+    } else if (mode == "selection_index") {
+      si_shared_data$file_data <- home_inputs()$file_data
+      showTab("main_navbar", "Selection Index")
+      updateNavbarPage(session, "main_navbar", selected = "Selection Index")
     }
   })
   
   # --- Call the Server Logic for each Analysis Module ---
   designExperimentServer(id = "design_experiment", home_inputs = design_exp_shared_data) 
-  analysisServer(id = "eda", home_inputs = eda_shared_data)
+  
+  exp_design_out <- analysisServer(id = "eda", home_inputs = eda_shared_data)
+  
+  observeEvent(exp_design_out$export_stab_event(), {
+    req(exp_design_out$export_stab_event() > 0)
+    data <- exp_design_out$export_stab_data()
+    req(data)
+    stability_shared_data$file_data <- data
+    stability_shared_data$stab_subtype <- "gge" 
+    showTab("main_navbar", "Stability Analysis")
+    updateNavbarPage(session, "main_navbar", selected = "Stability Analysis")
+    showNotification("Successfully exported Environment-wise results to Stability Analysis (GGE).", type = "message")
+  })
+  
+  observeEvent(exp_design_out$export_multi_event(), {
+    req(exp_design_out$export_multi_event() > 0)
+    data <- exp_design_out$export_multi_data()
+    req(data)
+    multi_shared_data$file_data <- data
+    multi_shared_data$multi_subtype <- exp_design_out$export_multi_type()
+    showTab("main_navbar", "Multivariate Analysis")
+    updateNavbarPage(session, "main_navbar", selected = "Multivariate Analysis")
+    showNotification("Successfully exported Combined results to Multivariate Analysis.", type = "message")
+  })
+  
   traitExplorerServer(id = "trait_explorer", home_inputs = trait_explorer_shared_data)
   stability_analysis_server(id = "stability", shared_data = stability_shared_data)
   mating_design_server(id = "mating", shared_data = mating_shared_data)
-  multivariate_analysis_server(id = "multi", shared_data = multi_shared_data)
+  multivariate_analysis_server(id = "multivariate", shared_data = multi_shared_data)
+  selection_index_server(id = "selection_index", raw_data = reactive({ si_shared_data$file_data }))
   
 }

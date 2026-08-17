@@ -22,6 +22,14 @@ library(ggplot2)
 multivariate_analysis_ui <- function(id) {
   ns <- NS(id)
   tabPanel("Multivariate Analysis",
+           div(
+             class = "alert alert-info shadow-sm", 
+             style = "margin: 0px 0px 20px 0px; border-left: 5px solid #1F4E79; background-color: #f8f9fa; color: #333; padding: 12px 20px; border-radius: 8px; font-size: 14px;",
+             icon("lightbulb", style="color:#f39c12; font-size: 16px; margin-right: 8px;"), 
+             tags$b("Feeling stuck?"), 
+             " Check out ", 
+             tags$a("this video tutorial.", href = "https://youtu.be/pRT17EjHCOM", target = "_blank", style="color: #1F4E79; font-weight: bold; text-decoration: underline;")
+           ),
            sidebarLayout(
              sidebarPanel(
                width = 3,
@@ -53,17 +61,24 @@ multivariate_analysis_server <- function(id, shared_data) {
     
     # --- Dynamic Sidebar UI ---
     output$multi_sidebar <- renderUI({
-      req(multi_subtype_selected(), multi_file_data())
+      if (is.null(multi_file_data())) {
+        return(tags$div(style = "color: #e74c3c; font-weight: bold; padding: 10px;",
+                        icon("exclamation-triangle"), 
+                        " Please upload a dataset on the Home tab and click 'Proceed to Analysis' to begin."))
+      }
       
       df <- multi_file_data()
       choices_numeric <- names(df)[sapply(df, is.numeric)]
+      
+      subtype <- multi_subtype_selected()
+      if (is.null(subtype)) subtype <- "pca"
       
       step_block <- function(label, ...) {
         tags$div(tags$b(label), br(), ..., style = "margin-bottom: 20px;")
       }
       
       div(style = "color: #142850; font-size: 15px;",
-          if (multi_subtype_selected() == "pca") {
+          if (subtype == "pca") {
             tagList(
               step_block("Step 1: Select Traits for PCA",
                          checkboxGroupInput(ns("multi_pca_traits"), "Traits for PCA", choices = choices_numeric, selected = choices_numeric)
@@ -121,19 +136,24 @@ multivariate_analysis_server <- function(id, shared_data) {
     
     # --- Dynamic Main Panel UI ---
     output$multi_mainpanel <- renderUI({
-      req(multi_subtype_selected())
-      if (multi_subtype_selected() == "pca") {
+      if (is.null(multi_file_data())) {
+        return(tags$div(class = "alert alert-warning", "No data uploaded. Please return to the Home tab."))
+      }
+      subtype <- multi_subtype_selected()
+      if (is.null(subtype)) subtype <- "pca"
+      
+      if (subtype == "pca") {
         tabsetPanel(
           tabPanel("Individual Biplot", plotlyOutput(ns("multi_pca_biplot"), height = "650px")),
           tabPanel("Scree Plot", plotlyOutput(ns("multi_pca_scree"), height = "600px")),
           tabPanel("Variable Contributions", plotOutput(ns("multi_pca_varcontrib"), height = "650px")),
           tabPanel("Summary Table", DT::DTOutput(ns("multi_pca_eigen")))
         )
-      } else if (multi_subtype_selected() == "correlation") {
+      } else if (subtype == "correlation") {
         tabsetPanel(
-          tabPanel("Correlation Matrix Plot", plotOutput(ns("multi_corr_corrplot")))
+          tabPanel("Correlation Plot", plotOutput(ns("multi_corr_corrplot"), height = "700px"))
         )
-      } else if (multi_subtype_selected() == "path") {
+      } else if (subtype == "path") {
         tabsetPanel(
           tabPanel("Path Diagram", plotOutput(ns("multi_path_diagram"))),
           tabPanel("Path Coefficients Table", tableOutput(ns("multi_path_coef")))
@@ -200,9 +220,17 @@ multivariate_analysis_server <- function(id, shared_data) {
         })
         
         output$multi_pca_varcontrib <- renderPlot({
+          gradient_palettes <- list(
+            default = c("#00AFBB", "#E7B800", "#FC4E07"),
+            viridis = c("#440154FF", "#21908CFF", "#FDE725FF"),
+            plasma  = c("#0D0887FF", "#CC4678FF", "#F0F921FF"),
+            grey    = c("grey90", "grey10")
+          )
+          selected_gradient <- gradient_palettes[[input$pca_palette]]
+          
           fviz_pca_var(res.pca, 
                        col.var = "contrib", 
-                       gradient.cols = c("black", "blue", "red"),
+                       gradient.cols = selected_gradient,
                        repel = input$pca_repel, 
                        labelsize = input$pca_label_size) + 
             switch(input$pca_theme, "minimal" = theme_minimal(), "classic" = theme_classic(), "bw" = theme_bw())
@@ -310,7 +338,7 @@ multivariate_analysis_server <- function(id, shared_data) {
             
             p_var <- fviz_pca_var(res.pca, 
                                   col.var = "contrib", 
-                                  gradient.cols = c("black", "blue", "red"),
+                                  gradient.cols = selected_gradient,
                                   repel = input$pca_repel, 
                                   labelsize = input$pca_label_size) + selected_theme
             

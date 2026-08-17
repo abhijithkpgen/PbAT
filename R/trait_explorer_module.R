@@ -13,6 +13,14 @@ traitExplorerUI <- function(id) {
   ns <- NS(id)
   # This top-level UI now creates a tabset panel for the two explorers
   tabPanel("Trait Explorer",
+           div(
+             class = "alert alert-info shadow-sm", 
+             style = "margin: 0px 0px 20px 0px; border-left: 5px solid #1F4E79; background-color: #f8f9fa; color: #333; padding: 12px 20px; border-radius: 8px; font-size: 14px;",
+             icon("lightbulb", style="color:#f39c12; font-size: 16px; margin-right: 8px;"), 
+             tags$b("Feeling stuck?"), 
+             " Check out ", 
+             tags$a("this video tutorial.", href = "https://youtu.be/jLcn08iG9gw", target = "_blank", style="color: #1F4E79; font-weight: bold; text-decoration: underline;")
+           ),
            tabsetPanel(
              id = ns("explorer_tabs"),
              tabPanel("Spatial Trait Explorer", spatialExplorerUI(ns("spatial"))),

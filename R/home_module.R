@@ -21,11 +21,12 @@ homeUI <- function(id) {
                   tagList(icon("table"), "Experimental Design"),
                   tagList(icon("chart-line"), "Stability Analysis"),
                   tagList(icon("project-diagram"), "Multivariate Analysis"),
-                  tagList(icon("dna"), "Mating Design")
+                  tagList(icon("dna"), "Mating Design"),
+                  tagList(icon("filter"), "Selection Index")
                 ),
                 choiceValues = c(
                   "design_exp", "trait_explorer", "eda", 
-                  "stability", "multivariate", "mating"
+                  "stability", "multivariate", "mating", "selection_index"
                 ),
                 selected = "design_exp"
               )
@@ -104,37 +105,84 @@ homeUI <- function(id) {
           uiOutput(ns("workflow_overview_ui"))
         ),
         
-        # Right Side: The Official Citation Card (Enhanced Design)
+        # Right Side Container (Holds Citation and Updates)
         div(
-          style = "flex: 1 1 300px; max-width: 350px; margin-left: auto; 
-                   background: linear-gradient(135deg, #ffffff 0%, #f7f9fc 100%); 
-                   padding: 25px; border-radius: 12px; 
-                   box-shadow: 0 8px 20px rgba(0,0,0,0.1); 
-                   border-left: 6px solid #1F4E79; 
-                   transition: transform 0.3s ease, box-shadow 0.3s ease; 
-                   box-sizing: border-box;",
+          style = "flex: 1 1 300px; max-width: 350px; margin-left: auto; display: flex; flex-direction: column; gap: 20px;",
           
           # Adding a small hover effect via CSS injection
           tags$style("
-            .citation-card:hover { transform: translateY(-5px); box-shadow: 0 12px 25px rgba(0,0,0,0.15); }
+            .home-side-card {
+              background: linear-gradient(135deg, #ffffff 0%, #f7f9fc 100%); 
+              padding: 25px; border-radius: 12px; 
+              box-shadow: 0 8px 20px rgba(0,0,0,0.1); 
+              transition: transform 0.3s ease, box-shadow 0.3s ease; 
+              box-sizing: border-box;
+            }
+            .home-side-card:hover { transform: translateY(-5px); box-shadow: 0 12px 25px rgba(0,0,0,0.15); }
           "),
-          div(class = "citation-card",
-              
-              tags$h5(icon("quote-right"), " How to Cite PbAT", 
-                      style = "color: #1F4E79; font-weight: 800; margin-top: 0; font-size: 17px; margin-bottom: 15px;"),
-              
-              tags$p(
-                style = "font-size: 13.5px; line-height: 1.6; color: #444; text-align: justify; margin-bottom: 15px;",
-                "Abhijith, K. P., K. K. Vinod, R. K. Ellur, K. T. Ravikiran, R. K. Saxena, V. Muthusamy, and S. G. Krishnan. (2026). ",
-                tags$b("PbAT: A user‐friendly R/Shiny platform for data‐driven decision support in crop improvement."), 
-                " Applications in Plant Sciences, 14, e70068."
-              ),
-              
-              tags$a(href = "https://doi.org/10.1002/aps3.70068", target = "_blank", 
-                     style = "display: inline-block; padding: 8px 12px; background-color: #1F4E79; color: #ffffff; 
-                              border-radius: 5px; text-decoration: none; font-size: 12px; font-weight: bold; 
-                              transition: background 0.2s;",
-                     "View Official Publication")
+          
+          # Citation Card
+          div(
+            class = "home-side-card",
+            style = "border-left: 6px solid #1F4E79;",
+            
+            tags$h5(icon("quote-right"), " How to Cite PbAT", 
+                    style = "color: #1F4E79; font-weight: 800; margin-top: 0; font-size: 17px; margin-bottom: 15px;"),
+            
+            tags$p(
+              style = "font-size: 13.5px; line-height: 1.6; color: #444; text-align: justify; margin-bottom: 15px;",
+              "Abhijith, K. P., K. K. Vinod, R. K. Ellur, K. T. Ravikiran, R. K. Saxena, V. Muthusamy, and S. G. Krishnan. (2026). ",
+              tags$b("PbAT: A user‐friendly R/Shiny platform for data‐driven decision support in crop improvement."), 
+              " Applications in Plant Sciences, 14, e70068."
+            ),
+            
+            tags$a(href = "https://doi.org/10.1002/aps3.70068", target = "_blank", 
+                   style = "display: inline-block; padding: 8px 12px; background-color: #1F4E79; color: #ffffff; 
+                            border-radius: 5px; text-decoration: none; font-size: 12px; font-weight: bold; 
+                            transition: background 0.2s;",
+                   "View Official Publication")
+          ),
+          
+          # Updates Card
+          div(
+            class = "home-side-card",
+            style = "border-left: 6px solid #3FA796;",
+            
+            tags$h5(icon("bullhorn"), " What's New", 
+                    style = "color: #3FA796; font-weight: 800; margin-top: 0; font-size: 17px; margin-bottom: 15px;"),
+            
+            tags$style(HTML("
+              @keyframes slideUpFade {
+                0% { opacity: 0; transform: translateY(15px); }
+                100% { opacity: 1; transform: translateY(0); }
+              }
+              .whats-new-list li {
+                opacity: 0;
+                animation: slideUpFade 0.5s ease-out forwards;
+              }
+              .whats-new-list li:nth-child(1) { animation-delay: 0.1s; }
+              .whats-new-list li:nth-child(2) { animation-delay: 0.25s; }
+              .whats-new-list li:nth-child(3) { animation-delay: 0.4s; }
+              .whats-new-list li:nth-child(4) { animation-delay: 0.55s; }
+              .whats-new-list li:nth-child(5) { animation-delay: 0.7s; }
+              .whats-new-list li:nth-child(6) { animation-delay: 0.85s; }
+              .whats-new-list li:nth-child(7) { animation-delay: 1.0s; }
+              .whats-new-list li:nth-child(8) { animation-delay: 1.15s; }
+              .whats-new-list li:nth-child(9) { animation-delay: 1.3s; }
+            ")),
+            
+            tags$ul(
+              class = "whats-new-list",
+              style = "font-size: 13.5px; line-height: 1.6; color: #444; padding-left: 15px; margin-bottom: 0;",
+              tags$li(tags$b("v1.1.0 Release")),
+              tags$li("Added Selection Index module"),
+              tags$li("Added 1-click Auto-Export of results from Experimental Design to Stability and Multivariate modules"),
+              tags$li("Improved CRD analysis with enhanced functionalities"),
+              tags$li("Added Tutorials for various workflows"),
+              tags$li("Fixed customisation rendering in stability & multivariate PDF exports"),
+              tags$li("Improved the PCA graphics"),
+              tags$li("Minor UI and performance improvements")
+            )
           )
         )
       )
@@ -157,7 +205,7 @@ homeServer <- function(id) {
           $('%s').parent('label').addClass('active-workflow');
         ", js_selector, js_checked_selector)
       )
-    }, ignoreNULL = FALSE, ignoreInit = TRUE) 
+    }, ignoreNULL = FALSE, ignoreInit = FALSE) 
     
     observeEvent(input$go_to_analysis, {
       mode <- input$analysis_mode
@@ -245,6 +293,16 @@ homeServer <- function(id) {
             tags$li(span(class="step-number", "3"), div(tags$b("Map Columns:"), "Assign columns for parents (or lines/testers), replication, and traits.")),
             tags$li(span(class="step-number", "4"), div(tags$b("Run Analysis:"), "Calculate ANOVA and estimate General (GCA) and Specific (SCA) Combining Ability effects.")),
             tags$li(span(class="step-number", "5"), div(tags$b("Interpret Results:"), "Identify the best general combiners for breeding programs and the best specific crosses for hybrid development."))
+          ))
+        ),
+        "selection_index" = tagList(
+          h4(tags$b("Selection Index Workflow")),
+          div(class="workflow-overview", tags$ol(
+            tags$li(span(class="step-number", "1"), div(tags$b("Upload Data:"), "Provide your trait data (means or raw with replications).")),
+            tags$li(span(class="step-number", "2"), div(tags$b("Design Ideotype:"), "Specify the direction of selection for each trait (Increase or Decrease).")),
+            tags$li(span(class="step-number", "3"), div(tags$b("Select Index:"), "Choose MGIDI, Smith-Hazel, or FAI-BLUP and set selection intensity.")),
+            tags$li(span(class="step-number", "4"), div(tags$b("Run & Interpret:"), "Rank genotypes and view radar/contribution plots to understand why genotypes were selected.")),
+            tags$li(span(class="step-number", "5"), div(tags$b("Download:"), "Export the ranked tables and plots."))
           ))
         )
       )

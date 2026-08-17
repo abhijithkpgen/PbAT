@@ -2,9 +2,10 @@
 app_ui <- function() {
   navbarPage(
     title = div(
-      style = "display: flex; align-items: center; gap: 16px;",
-      tags$img(src = "www/LogoNobg.png", height = "50px", style = "margin-right: 8px;"),
-      span("PbAT: Plant breeding Analytical Tools v1.0.5", style = "font-weight: 800; font-size: 1.4rem;")
+      style = "display: flex; align-items: center;",
+      tags$img(src = "www/LogoNobg.png", height = "50px", style = "margin-right: 15px;"),
+      span("PbAT: Plant breeding Analytical Tools", style = "font-weight: 800; font-size: 1.4rem; color: #1F4E79; margin-right: 10px;"),
+      span("v1.1.0", style = "background: linear-gradient(135deg, #3FA796, #218370); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; box-shadow: 0 3px 8px rgba(63,167,150,0.35); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 2px;")
     ),
     id = "main_navbar", 
     theme = bslib::bs_theme(
@@ -49,9 +50,8 @@ app_ui <- function() {
         tags$style(HTML("
       /* --- Main Body & Layout --- */
       body {
-        background: #4AC29A;
-        background: -webkit-linear-gradient(to right, #BDFFF3, #4AC29A);
-        background: linear-gradient(to right, #BDFFF3, #4AC29A);
+        background: #5EBEB0;
+        background: linear-gradient(135deg, #7CD1C4 0%, #4FB3A4 100%);
         font-family: 'Inter', sans-serif;
       }
       .home-container {
@@ -91,59 +91,63 @@ app_ui <- function() {
       /* --- Panel Styling (Cards) --- */
       .card-panel {
         background-color: #FFFFFF !important;
-        padding: 25px;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        padding: 30px;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
         flex: 1; 
         min-width: 360px; 
         max-width: 480px; 
-        font-size: 14px;
+        font-size: 14.5px;
         color: #333333 !important;
-        border: 1px solid #e9ecef;
+        border: none;
       }
       
       /* --- Button Styling --- */
       .btn {
         border-radius: 8px;
-        font-weight: bold;
+        font-weight: 700;
+        letter-spacing: 0.5px;
         text-transform: uppercase;
-        padding: 10px 15px;
-        transition: all 0.2s ease-in-out;
+        transition: all 0.25s ease-in-out;
       }
       .btn-primary {
-        background-image: linear-gradient(to right, #1565C0, #1E88E5) !important;
+        background: linear-gradient(135deg, #1F4E79, #3FA796) !important;
         border: none !important;
-        font-size: 16px;
-        padding: 12px 20px;
+        color: #ffffff !important;
+        font-size: 15px;
+        padding: 14px 24px;
+        box-shadow: 0 4px 15px rgba(31, 78, 121, 0.25);
       }
       .btn-primary:hover {
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        box-shadow: 0 6px 20px rgba(31, 78, 121, 0.4);
         transform: translateY(-2px);
       }
       /* --- Workflow Selection Box --- */
       .workflow-box .shiny-input-radiogroup > label {
         font-size: 22px;
-        font-weight: 700;
+        font-weight: 800;
         color: #1F4E79;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
+        letter-spacing: -0.5px;
       }
       .workflow-box .radio label {
         display: flex;
         align-items: center;
         width: 100%;
-        padding: 12px 15px;
-        border-radius: 6px;
-        border: 1px solid #ced4da;
-        background-color: #F1F3F4;
-        color: #495057;
+        padding: 14px 18px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        background-color: #f8fafc;
+        color: #475569;
         cursor: pointer;
         transition: all 0.2s ease-in-out;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
       }
       .workflow-box .radio label:hover {
-        background-color: #E3F2FD;
+        background-color: #f1f5f9;
         border-left: 4px solid #3FA796;
-        padding-left: 11px;
+        padding-left: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
       }
       .workflow-box .radio input[type='radio'] {
         display: none;
@@ -174,14 +178,53 @@ app_ui <- function() {
       .file-upload-area:hover {
         background-color: #E3F2FD;
       }
+      /* --- Sidebar & Forms Styling for High Contrast --- */
+      .well {
+        background-color: rgba(255, 255, 255, 0.95) !important;
+        border: none !important;
+        border-radius: 12px !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1) !important;
+        padding: 25px !important;
+      }
+      .well h3, .well h4 {
+        color: #216E60 !important;
+        font-weight: 800 !important;
+        margin-bottom: 10px;
+      }
+      .well .control-label, .well label {
+        color: #1F4E79 !important;
+        font-weight: 700 !important;
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+      .well p, .well .help-block {
+        color: #333333 !important;
+      }
+      
       /* --- Tabs --- */
+      .nav-tabs {
+        border-bottom: none;
+        margin-bottom: 15px;
+      }
       .nav-tabs .nav-link {
-        border-bottom: 2px solid transparent;
+        color: #1F4E79;
+        font-weight: 600;
+        background-color: rgba(255, 255, 255, 0.6);
+        border: none !important;
+        margin-right: 8px;
+        border-radius: 8px 8px 0 0;
+        padding: 10px 20px;
+        transition: all 0.2s ease;
+      }
+      .nav-tabs .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.85);
       }
       .nav-tabs .nav-link.active, .nav-tabs .nav-item.show .nav-link {
         color: #1F4E79 !important;
-        border-color: transparent transparent #1F4E79 transparent !important;
-        font-weight: 600;
+        background-color: #FFFFFF !important;
+        border-bottom: 3px solid #3FA796 !important;
+        font-weight: 800;
+        box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
       }
       
       /* --- Help Text / Tips --- */
@@ -237,10 +280,7 @@ app_ui <- function() {
     
     designExperimentUI(id = "design_experiment"),
     
-    navbarMenu("Experimental Design",
-               analysisUI(id = "eda")[[1]], 
-               analysisUI(id = "eda")[[2]]
-    ),
+    analysisUI(id = "eda"),
     
     traitExplorerUI(id = "trait_explorer"),
     
@@ -248,7 +288,9 @@ app_ui <- function() {
     
     mating_design_ui(id = "mating"),
     
-    multivariate_analysis_ui(id = "multi"),
+    selection_index_ui(id = "selection_index"),
+    
+    multivariate_analysis_ui(id = "multivariate"),
     
     # <<< ABOUT TAB >>>
     tabPanel("About",
@@ -348,9 +390,9 @@ app_ui <- function() {
                             div(class = "video-card", style = "margin-bottom: 30px; padding: 15px; background-color: #FFFFFF; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); border-top: 4px solid #3FA796;",
                                 h5("3. Experimental Design Analysis", style="color:#1F4E79; font-weight:bold; margin-top:0; font-size: 16px;"),
                                 p("Perform linear mixed models, generate BLUEs/BLUPs, and view diagnostics.", style="font-size: 12px; color: #666;"),
-                                tags$div(style = "position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;",
-                                         tags$iframe(src = "https://www.youtube.com/embed/f6a82yrbR3c", style = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;", allowfullscreen = NA)
-                                )
+                                div(class = "video-container", style = "position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);",
+                                         tags$iframe(src = "https://www.youtube.com/embed/fwLlfDG8hYk", style = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;", allowfullscreen = NA)
+                                      )
                             )
                      )
                    ),
@@ -399,22 +441,72 @@ app_ui <- function() {
                      tabPanel("Sample Data",
                               div(style = "padding-top: 20px;",
                                   h3("Sample Data Downloads"),
-                                  p("Disclaimer: The example datasets provided in this application are simulated for demonstration purposes only. They do not represent actual experimental results and should not be used for research conclusions."),
-                                  tags$ul(
-                                    tags$li(tags$a(href = "www/Alpha_lattice_sample.csv", "Alpha Lattice Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Augmented_RCBD_Sample.csv", "Augmented RCBD Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Diallel_Griffing_Method1_Sample.csv", "Griffing Method I Diallel Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Diallel_Griffing_Method2_Sample.csv", "Griffing Method II Diallel Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Diallel_Griffing_Method3_Sample.csv", "Griffing Method III Diallel Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Diallel_Griffing_Method4_Sample.csv", "Griffing Method IV Diallel Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Factorial_CRD_sample.csv", "Factorial CRD Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Line_x_Tester_Sample.csv", "Line x Tester Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Partial_diallel_dummy.csv", "Partial Diallel Sample CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/AMMI_GGE_Sample_Data.csv", "Biplot Sample Format CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/Mult_Variate_sample_format.csv", "Multivariate Analysis Sample Format CSV", download = NA, target = "_blank")),
-                                    tags$li(tags$a(href = "www/RCBD_sample.csv", "RCBD Sample CSV", download = NA, target = "_blank"))
+                                  p("Disclaimer: The example datasets provided in this application are simulated for demonstration purposes only. They do not represent actual experimental results and should not be used for research conclusions."),                                  tags$style("
+                                    .sample-data-grid {
+                                      display: grid;
+                                      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                                      gap: 20px;
+                                      margin-top: 25px;
+                                    }
+                                    .sample-tile {
+                                      background: white;
+                                      border-radius: 12px;
+                                      padding: 18px 20px;
+                                      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+                                      border-left: 5px solid #3FA796;
+                                      text-decoration: none !important;
+                                      color: #1F4E79;
+                                      transition: all 0.25s ease;
+                                      display: flex;
+                                      align-items: center;
+                                      gap: 15px;
+                                    }
+                                    .sample-tile:hover {
+                                      transform: translateY(-4px);
+                                      box-shadow: 0 8px 24px rgba(31,78,121,0.12);
+                                      background: #f8fafc;
+                                    }
+                                    .sample-tile i {
+                                      font-size: 24px;
+                                      color: #3FA796;
+                                      transition: color 0.25s ease;
+                                    }
+                                    .sample-tile:hover i {
+                                      color: #1F4E79;
+                                    }
+                                    .sample-tile .title {
+                                      font-weight: 700;
+                                      font-size: 14.5px;
+                                      line-height: 1.3;
+                                    }
+                                  "),
+                                  div(class = "sample-data-grid",
+                                    tags$a(class = "sample-tile", href = "www/Alpha_lattice_sample.csv", download = NA, target = "_blank",
+                                           icon("file-csv"), tags$div(class="title", "Alpha Lattice Sample")),
+                                    tags$a(class = "sample-tile", href = "www/Augmented_RCBD_Sample.csv", download = NA, target = "_blank",
+                                           icon("file-csv"), tags$div(class="title", "Augmented RCBD Sample")),
+                                    tags$a(class = "sample-tile", href = "www/Diallel_Griffing_Method1_Sample.csv", download = NA, target = "_blank",
+                                           icon("file-csv"), tags$div(class="title", "Griffing Method I Diallel")),
+                                    tags$a(class = "sample-tile", href = "www/Diallel_Griffing_Method2_Sample.csv", download = NA, target = "_blank",
+                                           icon("file-csv"), tags$div(class="title", "Griffing Method II Diallel")),
+                                    tags$a(class = "sample-tile", href = "www/Diallel_Griffing_Method3_Sample.csv", download = NA, target = "_blank",
+                                           icon("file-csv"), tags$div(class="title", "Griffing Method III Diallel")),
+                                    tags$a(class = "sample-tile", href = "www/Diallel_Griffing_Method4_Sample.csv", download = NA, target = "_blank",
+                                           icon("file-csv"), tags$div(class="title", "Griffing Method IV Diallel")),
+                                    tags$a(class = "sample-tile", href = "www/Factorial_CRD_sample.csv", download = NA, target = "_blank",
+                                           icon("file-csv"), tags$div(class="title", "Factorial CRD Sample")),
+                                    tags$a(class = "sample-tile", href = "www/Line_x_Tester_Sample.csv", download = NA, target = "_blank",
+                                           icon("file-csv"), tags$div(class="title", "Line x Tester Sample")),
+                                    tags$a(class = "sample-tile", href = "www/Partial_diallel_dummy.csv", download = NA, target = "_blank",
+                                           icon("file-csv"), tags$div(class="title", "Partial Diallel Sample")),
+                                    tags$a(class = "sample-tile", href = "www/AMMI_GGE_Sample_Data.csv", download = NA, target = "_blank",
+                                           icon("file-csv"), tags$div(class="title", "Biplot Sample Format")),
+                                    tags$a(class = "sample-tile", href = "www/Mult_Variate_sample_format.csv", download = NA, target = "_blank",
+                                           icon("file-csv"), tags$div(class="title", "Multivariate Analysis Sample")),
+                                    tags$a(class = "sample-tile", href = "www/RCBD_sample.csv", download = NA, target = "_blank",
+                                           icon("file-csv"), tags$div(class="title", "RCBD Sample"))
                                   )
-                              )
+                               )
                      ),
                      tabPanel("Troubleshooting",
                               div(style = "padding-top: 20px;",
