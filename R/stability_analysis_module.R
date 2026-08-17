@@ -20,6 +20,14 @@ stability_analysis_ui <- function(id) {
   ns <- NS(id)
   tabPanel(
     "Stability Analysis",
+    div(
+      class = "alert alert-info shadow-sm", 
+      style = "margin: 0px 0px 20px 0px; border-left: 5px solid #1F4E79; background-color: #f8f9fa; color: #333; padding: 12px 20px; border-radius: 8px; font-size: 14px;",
+      icon("lightbulb", style="color:#f39c12; font-size: 16px; margin-right: 8px;"), 
+      tags$b("Feeling stuck?"), 
+      " Check out ", 
+      tags$a("this video tutorial.", href = "https://youtu.be/-VA_RWqC1eE", target = "_blank", style="color: #1F4E79; font-weight: bold; text-decoration: underline;")
+    ),
     sidebarLayout(
       sidebarPanel(width = 3, uiOutput(ns("stab_sidebar"))),
       mainPanel(width = 9, uiOutput(ns("stab_mainpanel")))
@@ -158,10 +166,9 @@ stability_analysis_server <- function(id, shared_data) {
                              type = 2,
                              col.gen = input$stab_ammi_col_gen,
                              col.env = input$stab_ammi_col_env,
-                             size.lab.gen = input$stab_ammi_lab_size,
-                             size.lab.env = input$stab_ammi_lab_size,
-                             repel.gen = input$stab_ammi_repel,
-                             repel.env = input$stab_ammi_repel
+                             size.tex.gen = input$stab_ammi_lab_size,
+                             size.tex.env = input$stab_ammi_lab_size,
+                             repel = input$stab_ammi_repel
           ) + theme_minimal(base_size = 16)
         })
         
@@ -233,8 +240,8 @@ stability_analysis_server <- function(id, shared_data) {
                             type = type,
                             col.gen = input$stab_gge_col_gen,
                             col.env = input$stab_gge_col_env,
-                            size.text.gen = input$stab_gge_gen_lab_size,
-                            size.text.env = input$stab_gge_env_lab_size,
+                            size.tex.gen = input$stab_gge_gen_lab_size,
+                            size.tex.env = input$stab_gge_env_lab_size,
                             repel = input$stab_gge_repel)
           
           # 2. For types 2 and 3, manually add the environment vectors
@@ -285,10 +292,9 @@ stability_analysis_server <- function(id, shared_data) {
             plot_scores(res$ammi, type = 2,
                         col.gen = input$stab_ammi_col_gen,
                         col.env = input$stab_ammi_col_env,
-                        size.lab.gen = input$stab_ammi_lab_size,
-                        size.lab.env = input$stab_ammi_lab_size,
-                        repel.gen = input$stab_ammi_repel,
-                        repel.env = input$stab_ammi_repel) +
+                        size.tex.gen = input$stab_ammi_lab_size,
+                        size.tex.env = input$stab_ammi_lab_size,
+                        repel = input$stab_ammi_repel) +
               theme_minimal(base_size = 16)
           )
           dev.off()
@@ -308,7 +314,7 @@ stability_analysis_server <- function(id, shared_data) {
           create_gge_biplot_for_dl <- function(model, type) {
             base_plot <- plot(model, type = type,
                               col.gen = input$stab_gge_col_gen, col.env = input$stab_gge_col_env,
-                              size.text.gen = input$stab_gge_gen_lab_size, size.text.env = input$stab_gge_env_lab_size,
+                              size.tex.gen = input$stab_gge_gen_lab_size, size.tex.env = input$stab_gge_env_lab_size,
                               repel = input$stab_gge_repel)
             if (type %in% c(2, 3)) {
               env_coords <- as.data.frame(model$coordenv)
