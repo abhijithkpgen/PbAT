@@ -14,3 +14,6 @@
 ^README\.Rmd$
 ^LICENSE\.md$
 
+
+^plot_gge\.R$
+^plot_scores\.R$

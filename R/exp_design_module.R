@@ -273,7 +273,7 @@ analysisServer <- function(id, home_inputs) {
         
         if (is.null(fit_rand) || is_sing || grepl("failed to converge|singular", warn_msg, ignore.case = TRUE)) {
           actual_model_type <- "Fixed"
-          fallback_msg <- "⚠️ <b>Model Fallback Triggered:</b> The requested Random-effects model (BLUPs) failed to converge or resulted in a singular fit (zero variance in random components). To ensure you receive valid estimates, the system automatically fell back to a Fixed-effects model (BLUEs)."
+          fallback_msg <- "[!] <b>Model Fallback Triggered:</b> The requested Random-effects model (BLUPs) failed to converge or resulted in a singular fit (zero variance in random components). To ensure you receive valid estimates, the system automatically fell back to a Fixed-effects model (BLUEs)."
         }
       }
       
