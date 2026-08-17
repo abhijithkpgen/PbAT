@@ -23,4 +23,4 @@ RUN R -e "remotes::install_local('/usr/src/pbat_src', dependencies = TRUE)"
 EXPOSE 8080
 
 # The command to run when the container starts
-CMD ["R", "-e", "options(shiny.host='0.0.0.0', shiny.port=as.numeric(Sys.getenv('PORT'))); PbAT::run_app()"]
+CMD ["R", "-e", "shiny::runApp(PbAT::run_app(), host = '0.0.0.0', port = as.numeric(Sys.getenv('PORT')))"]

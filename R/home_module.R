@@ -132,7 +132,7 @@ homeUI <- function(id) {
             tags$p(
               style = "font-size: 13.5px; line-height: 1.6; color: #444; text-align: justify; margin-bottom: 15px;",
               "Abhijith, K. P., K. K. Vinod, R. K. Ellur, K. T. Ravikiran, R. K. Saxena, V. Muthusamy, and S. G. Krishnan. (2026). ",
-              tags$b("PbAT: A user‐friendly R/Shiny platform for data‐driven decision support in crop improvement."), 
+              tags$b("PbAT: A user-friendly R/Shiny platform for data-driven decision support in crop improvement."), 
               " Applications in Plant Sciences, 14, e70068."
             ),
             
