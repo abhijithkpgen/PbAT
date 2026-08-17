@@ -18,6 +18,14 @@ mating_design_ui <- function(id) {
   ns <- NS(id)
   tabPanel(
     "Mating Design Analysis",
+    div(
+      class = "alert alert-info shadow-sm", 
+      style = "margin: 0px 0px 20px 0px; border-left: 5px solid #1F4E79; background-color: #f8f9fa; color: #333; padding: 12px 20px; border-radius: 8px; font-size: 14px;",
+      icon("lightbulb", style="color:#f39c12; font-size: 16px; margin-right: 8px;"), 
+      tags$b("Feeling stuck?"), 
+      " Check out ", 
+      tags$a("this video tutorial.", href = "https://youtu.be/PTAxnGZWr1o", target = "_blank", style="color: #1F4E79; font-weight: bold; text-decoration: underline;")
+    ),
     sidebarLayout(
       sidebarPanel(
         width = 3,

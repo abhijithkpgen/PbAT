@@ -13,57 +13,19 @@
 analysisUI <- function(id) {
   ns <- NS(id) # Create the namespace
   
-  list(
-    # --- UI for Analysis 1 Tab ---
-    tabPanel("Analysis 1",
-             sidebarLayout(
-               sidebarPanel(width = 4, uiOutput(ns("dynamic_sidebar"))),
-               mainPanel(id = ns("main_panel_eda"), uiOutput(ns("dynamic_mainpanel"))) 
-             )
-    ),
-    # --- UI for Analysis 2 Tab ---
-    tabPanel("Analysis 2",
-             sidebarLayout(
-               sidebarPanel(width = 4,
-                            # --- NEW: Selector for BLUEs vs BLUPs ---
-                            selectInput(ns("analysis2_input_type"), "Select Input for Analysis 2",
-                                        choices = c("BLUEs (Fixed Model)" = "blue", "BLUPs (Random Model)" = "blup")),
-                            hr(),
-                            selectInput(ns("gge_trait"), "Trait for GGE Biplot", choices = NULL),
-                            actionButton(ns("run_gge"), "Run GGE Biplot", class = "btn btn-success"),
-                            uiOutput(ns("gge_status")),
-                            hr(),
-                            checkboxGroupInput(ns("multi_traits"), "Select Traits for PCA / Correlation", choices = NULL),
-                            actionButton(ns("run_pca"), "Run PCA", class = "btn btn-primary"),
-                            uiOutput(ns("pca_status")),
-                            br(),
-                            actionButton(ns("run_corr"), "Run Correlation Plot", class = "btn btn-secondary"),
-                            uiOutput(ns("corr_status")),
-                            downloadButton(ns("download_analysis2"), "Download Analysis 2 ZIP", class = "btn btn-success")
-               ),
-               mainPanel(
-                 tabsetPanel(
-                   id = ns("analysis2_tabs"),
-                   tabPanel(" GGE Biplot",
-                            h4(" Which Won Where"), plotOutput(ns("gge_plot_type1")),
-                            h4(" Mean vs Stability"), plotOutput(ns("gge_plot_type2")),
-                            h4(" Representativeness vs Discriminativeness"), plotOutput(ns("gge_plot_type3"))
-                   ),
-                   tabPanel(" PCA Plot",
-                            h4(" PCA Individual Biplot"), plotOutput(ns("pca_plot_biplot")),
-                            h4(" Scree Plot"), plotOutput(ns("pca_plot_scree")),
-                            h4(" Variable Contributions"), plotOutput(ns("pca_plot_varcontrib")),
-                            h4(" PCA Summary Table"), tableOutput(ns("pca_table_summary"))
-                   ),
-                   tabPanel("Correlation Plot",
-                            plotOutput(ns("corr_plot1")),
-                            hr(),
-                            uiOutput(ns("corr_interpretation_ui"))
-                   )
-                 )
-               )
-             )
-    )
+  tabPanel("Experimental Design",
+           div(
+             class = "alert alert-info shadow-sm", 
+             style = "margin: 0px 0px 20px 0px; border-left: 5px solid #1F4E79; background-color: #f8f9fa; color: #333; padding: 12px 20px; border-radius: 8px; font-size: 14px;",
+             icon("lightbulb", style="color:#f39c12; font-size: 16px; margin-right: 8px;"), 
+             tags$b("Feeling stuck?"), 
+             " Check out ", 
+             tags$a("this video tutorial.", href = "https://youtu.be/fwLlfDG8hYk", target = "_blank", style="color: #1F4E79; font-weight: bold; text-decoration: underline;")
+           ),
+           sidebarLayout(
+             sidebarPanel(width = 3, uiOutput(ns("dynamic_sidebar"))),
+             mainPanel(id = ns("main_panel_eda"), uiOutput(ns("dynamic_mainpanel"))) 
+           )
   )
   
 }
@@ -285,11 +247,49 @@ analysisServer <- function(id, home_inputs) {
         }
         return(HTML(interpretation))
       }
+      actual_model_type <- model_type
+      fallback_msg <- ""
       
-      if (model_type == "Fixed") {
-        fit_vc <- lmerTest::lmer(as.formula(vc_formula_str), data = df)
+      # Step 1: Try Random Model if requested
+      if (model_type == "Random") {
+        fit_rand <- NULL
+        warn_msg <- ""
+        
+        tryCatch({
+          withCallingHandlers({
+            fit_rand <- lmerTest::lmer(as.formula(random_formula_str), data = df)
+          }, warning = function(w) {
+            warn_msg <<- paste(warn_msg, w$message)
+            invokeRestart("muffleWarning")
+          })
+        }, error = function(e) {
+          fit_rand <<- NULL
+        })
+        
+        is_sing <- FALSE
+        if (!is.null(fit_rand)) {
+          is_sing <- lme4::isSingular(fit_rand)
+        }
+        
+        if (is.null(fit_rand) || is_sing || grepl("failed to converge|singular", warn_msg, ignore.case = TRUE)) {
+          actual_model_type <- "Fixed"
+          fallback_msg <- "⚠️ <b>Model Fallback Triggered:</b> The requested Random-effects model (BLUPs) failed to converge or resulted in a singular fit (zero variance in random components). To ensure you receive valid estimates, the system automatically fell back to a Fixed-effects model (BLUEs)."
+        }
+      }
+      
+      results$actual_model_type <- actual_model_type
+      results$fallback_message <- fallback_msg
+      
+      # Step 2: Execute based on actual_model_type
+      if (actual_model_type == "Fixed") {
+        fit_vc <- tryCatch(lmerTest::lmer(as.formula(vc_formula_str), data = df), error = function(e) NULL)
+        
+        if (is.null(fit_vc)) {
+          return(list(Message = "Critical Error: Even the Fixed-effects model failed to converge. Please check your data for severe missingness or design imbalance."))
+        }
+        
         results$is_singular <- lme4::isSingular(fit_vc)
-        results$singularity_message <- if (results$is_singular) "Warning: Model fit is singular." else ""
+        results$singularity_message <- if (results$is_singular && fallback_msg == "") "Warning: Model fit is singular (some random effects have zero variance)." else ""
         
         # --- NEW ANOVA LOGIC ---
         results$anova_table <- tryCatch({
@@ -334,10 +334,9 @@ analysisServer <- function(id, home_inputs) {
           round_df(final_blue_table)
         }, error = function(e) data.frame(Message="BLUEs could not be calculated.", Error = e$message))
         
-      } else { # Random Model
-        fit_rand <- lmerTest::lmer(as.formula(random_formula_str), data = df)
-        results$is_singular <- lme4::isSingular(fit_rand)
-        results$singularity_message <- if(results$is_singular) "Warning: Model fit is singular." else ""
+      } else { # Random Model (only reaches here if Random was requested AND it successfully converged)
+        results$is_singular <- FALSE
+        results$singularity_message <- ""
         lrt_table_obj <- tryCatch({ process_lrt_table(fit_rand) }, error = function(e) NULL)
         if(!is.null(lrt_table_obj)) {
           results$lrt_table <- lrt_table_obj
@@ -379,7 +378,7 @@ analysisServer <- function(id, home_inputs) {
       nms <- names(df)
       numeric_cols <- nms[sapply(df, is.numeric)]
       design_lwr <- tolower(gsub("\\s+", "", design))
-      step_header <- function(step, txt) h4(div(style="margin-bottom:6px;margin-top:10px;color:#3a5a40;", paste0("Step ", step, ": ", txt)))
+      step_header <- function(step, txt) h4(div(style="margin-bottom:6px;margin-top:10px;color:#216E60;font-size:16px;", paste0("Step ", step, ": ", txt)))
       
       if (design_lwr == "crd") {
         wellPanel(
@@ -388,11 +387,12 @@ analysisServer <- function(id, home_inputs) {
           uiOutput(ns("crd_factor_ui")),
           step_header(2, "Select Traits"),
           checkboxGroupInput(ns("crd_traits"), NULL, choices = numeric_cols),
-          step_header(3, "Run Analysis"),
+          step_header(3, "Run Descriptive Summary"),
           actionButton(ns("crd_descriptive"), "Run Descriptive Summary", class = "btn btn-primary mb-2"),
+          step_header(4, "Run Model-Based Analysis"),
           actionButton(ns("run_crd_anova"), "Run ANOVA + Post Hoc", class = "btn btn-primary mb-2"),
           actionButton(ns("run_crd_interact"), "Plot Interactions", class = "btn btn-info mb-2"),
-          step_header(4, "Download Results"),
+          step_header(5, "Download Results"),
           downloadButton(ns("download_crd_zip"), "Download CRD Results (ZIP)", class = "btn btn-success")
         )
       } else if (design_lwr %in% c("augmentedrcbd", "rcbd", "alphalattice")) {
@@ -416,15 +416,20 @@ analysisServer <- function(id, home_inputs) {
           step_header(3, "Select Traits and Options"),
           checkboxGroupInput(ns("traits"), NULL, choices = numeric_cols, selected = numeric_cols[1]),
           selectInput(ns("palette"), "Boxplot Color Palette", choices = rownames(RColorBrewer::brewer.pal.info)),
-          selectInput(ns("genotype_model"), "Genotype Model", choices = c("Fixed", "Random"), selected = "Random"),
-          checkboxInput(ns("env_wise"), "Compute Environment-wise BLUE/BLUP?", value = TRUE),
-          step_header(4, "Run Analysis"),
+          step_header(4, "Run Descriptive Summary"),
           actionButton(ns("run_descriptive"), "Run Descriptive Summary", class = "btn btn-primary mb-2"),
           uiOutput(ns("descriptive_status")),
+          step_header(5, "Run Model-Based Analysis"),
+          selectInput(ns("genotype_model"), "Genotype Model", choices = c("Fixed", "Random"), selected = "Random"),
+          checkboxInput(ns("env_wise"), "Compute Environment-wise BLUE/BLUP?", value = TRUE),
           actionButton(ns("run_model"), "Run Model-Based Analysis", class = "btn btn-primary mb-2"),
           uiOutput(ns("model_status")),
-          step_header(5, "Download Results"),
-          downloadButton(ns("download_analysis1"), "Download Results ZIP", class = "btn btn-success")
+          step_header(6, "Download & Export"),
+          downloadButton(ns("download_analysis1"), "Download Results ZIP", class = "btn btn-success mb-2", style="width:100%;"),
+          shinyjs::disabled(selectInput(ns("export_multi_type"), "Multivariate Method", 
+                      choices = c("PCA" = "pca", "Correlation" = "correlation", "Path Analysis" = "path"))),
+          shinyjs::disabled(actionButton(ns("export_multi"), "Export to Multivariate Analysis", class = "btn btn-info mb-2", style="width:100%;")),
+          shinyjs::disabled(actionButton(ns("export_stab"), "Export to GGE Biplot Analysis", class = "btn btn-info mb-2", style="width:100%;"))
         )
       }
     })
@@ -456,9 +461,10 @@ analysisServer <- function(id, home_inputs) {
           tabPanel(
             title = trait,
             tabsetPanel(
-              tabPanel("Summary Table", tableOutput(ns(paste0("crd_sum_", trait_id)))),
+              tabPanel("Summary Table", uiOutput(ns(paste0("crd_sum_ui_", trait_id)))),
               tabPanel("ANOVA Table", tableOutput(ns(paste0("crd_anova_", trait_id)))),
-              tabPanel("Post-Hoc Test (Tukey HSD)", tableOutput(ns(paste0("crd_posthoc_", trait_id)))),
+              tabPanel("Assumptions & Diagnostics", uiOutput(ns(paste0("crd_diagnostics_panel_", trait_id)))),
+              tabPanel("Post-Hoc Test (Tukey HSD)", uiOutput(ns(paste0("crd_posthoc_ui_", trait_id)))),
               tabPanel("Missing Combinations", tableOutput(ns(paste0("crd_missing_", trait_id)))),
               tabPanel("Interaction Plots", uiOutput(ns(paste0("crd_interaction_panel_", trait_id))))
             )
@@ -646,8 +652,15 @@ analysisServer <- function(id, home_inputs) {
           }
           if (genotype_model == "Random") {
             key <- get_equation_key(design, trial_type, "Random")
-            res_rand <- run_model_and_extract(df, trait, NULL, formula_random_str, "Random", entry_col, env_col, block_col, rep_col, design)
-            trait_results$Random <- c(list(equation_latex = model_equations[[key]] %||% model_equations$default), res_rand)
+            res_rand <- run_model_and_extract(df, trait, fixed_formula_vc_str, formula_random_str, "Random", entry_col, env_col, block_col, rep_col, design)
+            
+            if (!is.null(res_rand$actual_model_type) && res_rand$actual_model_type == "Fixed") {
+               key_fixed <- get_equation_key(design, trial_type, "Fixed")
+               res_rand$equation_latex <- model_equations[[key_fixed]] %||% model_equations$default
+               trait_results$Fixed <- res_rand
+            } else {
+               trait_results$Random <- c(list(equation_latex = model_equations[[key]] %||% model_equations$default), res_rand)
+            }
           }
           all_results[[original_trait_name]] <- trait_results
         }
@@ -655,6 +668,9 @@ analysisServer <- function(id, home_inputs) {
         waiter::waiter_hide() 
       })
       model_analysis_finished(model_analysis_finished() + 1)
+      shinyjs::enable("export_multi_type")
+      shinyjs::enable("export_multi")
+      shinyjs::enable("export_stab")
       showNotification(paste(toupper(active_design()), "model analysis complete."), type = "message")
     })
     
@@ -705,6 +721,7 @@ analysisServer <- function(id, home_inputs) {
                                             h5("Model Equation", style="font-weight:bold;"), uiOutput(ns(paste0("equation_", tid_prefix))),
                                             create_explanation_ui(paste0("model_exp_", tid_prefix), model_explanation_content("Fixed", active_design(), input$trial_type)), 
                                             hr(),
+                                            uiOutput(ns(paste0("fallback_warning_", tid_prefix))),
                                             uiOutput(ns(paste0("singularity_warning_", tid_prefix))),
                                             h4("1. ANOVA Table (Genotype Only)"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("anova_", tid_prefix)))),
                                             uiOutput(ns(paste0("anova_interp_", tid_prefix))),
@@ -741,19 +758,26 @@ analysisServer <- function(id, home_inputs) {
             
             observeEvent(input[[paste0("toggle_", model_exp_base_id)]], {
               shinyjs::toggle(id = paste0("div_", model_exp_base_id), anim = TRUE)
-            })
+            }, ignoreInit = TRUE)
             observeEvent(input[[paste0("toggle_", lrt_exp_base_id)]], {
               shinyjs::toggle(id = paste0("div_", lrt_exp_base_id), anim = TRUE)
-            })
+            }, ignoreInit = TRUE)
+            
+            my_anova <- trait_content$Fixed$anova_table
+            my_lrt <- trait_content$Fixed$lrt_table
+            my_varcomps <- trait_content$Fixed$var_comps
+            my_blues <- trait_content$Fixed$blue_table
             
             output[[paste0("anova_interp_", tid_prefix)]] <- renderUI({ req(trait_content$Fixed$anova_interpretation); tags$div(class="alert alert-light", style="margin-top:10px; border-left: 3px solid #142850;", trait_content$Fixed$anova_interpretation) })
             output[[paste0("lrt_interp_", tid_prefix)]] <- renderUI({ req(trait_content$Fixed$lrt_interpretation); tags$div(class="alert alert-light", style="margin-top:10px; border-left: 3px solid #142850;", trait_content$Fixed$lrt_interpretation) })
             output[[paste0("equation_", tid_prefix)]] <- renderUI({ req(trait_content$Fixed$equation_latex); p(trait_content$Fixed$equation_latex) })
+            output[[paste0("fallback_warning_", tid_prefix)]] <- renderUI({ if(!is.null(trait_content$Fixed$fallback_message) && trait_content$Fixed$fallback_message != "") { tags$div(class = "alert alert-warning", HTML(trait_content$Fixed$fallback_message)) } })
             output[[paste0("singularity_warning_", tid_prefix)]] <- renderUI({ if(!is.null(trait_content$Fixed$is_singular) && trait_content$Fixed$is_singular) { tags$div(class = "alert alert-warning", trait_content$Fixed$singularity_message) } })
-            output[[paste0("anova_", tid_prefix)]] <- renderTable(trait_content$Fixed$anova_table, rownames = FALSE)
-            output[[paste0("lrt_", tid_prefix)]] <- renderTable(trait_content$Fixed$lrt_table, rownames = FALSE)
-            output[[paste0("varcomp_", tid_prefix)]] <- renderTable(trait_content$Fixed$var_comps, rownames = FALSE)
-            output[[paste0("blues_", tid_prefix)]] <- renderTable(trait_content$Fixed$blue_table, rownames = FALSE)
+            
+            output[[paste0("anova_", tid_prefix)]] <- renderTable({ print("Rendering anova"); print(my_anova); req(my_anova); my_anova }, rownames = FALSE)
+            output[[paste0("lrt_", tid_prefix)]] <- renderTable({ print("Rendering lrt"); print(my_lrt); req(my_lrt); my_lrt }, rownames = FALSE)
+            output[[paste0("varcomp_", tid_prefix)]] <- renderTable({ print("Rendering varcomp"); print(my_varcomps); req(my_varcomps); my_varcomps }, rownames = FALSE)
+            output[[paste0("blues_", tid_prefix)]] <- renderTable({ print("Rendering blues"); print(my_blues); req(my_blues); my_blues }, rownames = FALSE)
           })
         }
         if (!is.null(trait_content$Random)) {
@@ -765,17 +789,22 @@ analysisServer <- function(id, home_inputs) {
             
             observeEvent(input[[paste0("toggle_", model_exp_base_id)]], {
               shinyjs::toggle(id = paste0("div_", model_exp_base_id), anim = TRUE)
-            })
+            }, ignoreInit = TRUE)
             observeEvent(input[[paste0("toggle_", lrt_exp_base_id)]], {
               shinyjs::toggle(id = paste0("div_", lrt_exp_base_id), anim = TRUE)
-            })
+            }, ignoreInit = TRUE)
+            
+            my_lrt <- trait_content$Random$lrt_table
+            my_varcomps <- trait_content$Random$var_comps
+            my_blups <- trait_content$Random$blup_table
             
             output[[paste0("equation_", tid_prefix)]] <- renderUI({ req(trait_content$Random$equation_latex); p(trait_content$Random$equation_latex) })
             output[[paste0("lrt_interp_", tid_prefix)]] <- renderUI({ req(trait_content$Random$lrt_interpretation); tags$div(class="alert alert-light", style="margin-top:10px; border-left: 3px solid #142850;", trait_content$Random$lrt_interpretation) })
             output[[paste0("singularity_warning_", tid_prefix)]] <- renderUI({ if(!is.null(trait_content$Random$is_singular) && trait_content$Random$is_singular) { tags$div(class = "alert alert-warning", trait_content$Random$singularity_message) } })
-            output[[paste0("lrt_", tid_prefix)]] <- renderTable(trait_content$Random$lrt_table, rownames = FALSE)
-            output[[paste0("varcomp_", tid_prefix)]] <- renderTable(trait_content$Random$var_comps, rownames = FALSE)
-            output[[paste0("blups_", tid_prefix)]] <- renderTable(trait_content$Random$blup_table, rownames = FALSE)
+            
+            output[[paste0("lrt_", tid_prefix)]] <- renderTable({ print("Rendering random lrt"); print(my_lrt); req(my_lrt); my_lrt }, rownames = FALSE)
+            output[[paste0("varcomp_", tid_prefix)]] <- renderTable({ print("Rendering random varcomp"); print(my_varcomps); req(my_varcomps); my_varcomps }, rownames = FALSE)
+            output[[paste0("blups_", tid_prefix)]] <- renderTable({ print("Rendering random blups"); print(my_blups); req(my_blups); my_blups }, rownames = FALSE)
           })
         }
       })
@@ -806,19 +835,56 @@ analysisServer <- function(id, home_inputs) {
         local({
           trait_local <- trait; trait_id <- make.names(trait_local)
           
+          # 1. Main Effects Summaries
+          main_effects_list <- lapply(factor_cols, function(fac) {
+            df %>%
+              group_by(across(all_of(fac))) %>%
+              summarise(
+                Mean = round(mean(.data[[trait_local]], na.rm = TRUE), 2),
+                SD = round(sd(.data[[trait_local]], na.rm = TRUE), 2),
+                N = sum(!is.na(.data[[trait_local]])),
+                SE = round(SD / sqrt(N), 2),
+                Min = round(min(.data[[trait_local]], na.rm = TRUE), 2),
+                Max = round(max(.data[[trait_local]], na.rm = TRUE), 2),
+                .groups = "drop"
+              )
+          })
+          names(main_effects_list) <- factor_cols
+          
+          # 2. Full Interaction Summary
           summary_tbl <- df %>%
             group_by(across(all_of(factor_cols))) %>%
             summarise(
-              mean = round(mean(.data[[trait_local]], na.rm = TRUE), 2),
-              SE = round(sd(.data[[trait_local]], na.rm = TRUE)/sqrt(n()), 2),
-              N = n(),
+              Mean = round(mean(.data[[trait_local]], na.rm = TRUE), 2),
+              SD = round(sd(.data[[trait_local]], na.rm = TRUE), 2),
+              N = sum(!is.na(.data[[trait_local]])),
+              SE = round(SD / sqrt(N), 2),
+              Min = round(min(.data[[trait_local]], na.rm = TRUE), 2),
+              Max = round(max(.data[[trait_local]], na.rm = TRUE), 2),
               .groups = "drop"
             )
           
+          crd_results[[paste0("summary_main_effects_", trait_id)]] <- main_effects_list
           crd_results[[paste0("summary_", trait_id)]] <- summary_tbl
           
-          output[[paste0("crd_sum_", trait_id)]] <- renderTable({
-            req(crd_results[[paste0("summary_", trait_id)]])
+          output[[paste0("crd_sum_ui_", trait_id)]] <- renderUI({
+            req(crd_results[[paste0("summary_", trait_id)]], crd_results[[paste0("summary_main_effects_", trait_id)]])
+            
+            main_tabs <- lapply(names(crd_results[[paste0("summary_main_effects_", trait_id)]]), function(fac) {
+              tbl_id <- paste0("crd_sum_main_", trait_id, "_", fac)
+              tabPanel(paste(fac, "Means"), div(style = "overflow-x: auto; margin-top: 15px;", tableOutput(ns(tbl_id))))
+            })
+            int_tab <- tabPanel("Full Interaction Means", div(style = "overflow-x: auto; margin-top: 15px;", tableOutput(ns(paste0("crd_sum_int_", trait_id)))))
+            
+            do.call(tabsetPanel, c(list(id = ns(paste0("crd_sum_tabs_", trait_id))), main_tabs, list(int_tab)))
+          })
+          
+          output[[paste0("crd_sum_int_", trait_id)]] <- renderTable({ req(crd_results[[paste0("summary_", trait_id)]]) })
+          
+          lapply(names(main_effects_list), function(fac) {
+            output[[paste0("crd_sum_main_", trait_id, "_", fac)]] <- renderTable({
+              req(crd_results[[paste0("summary_main_effects_", trait_id)]][[fac]])
+            })
           })
         })
       }
@@ -869,19 +935,71 @@ analysisServer <- function(id, home_inputs) {
                   mutate(across(where(is.numeric), ~round(.x, 2))) %>%
                   mutate(Significance = add_significance_stars(p.value))
                 
-                tukey_hsd <- tryCatch(TukeyHSD(fit), error = function(e) NULL)
-                if (!is.null(tukey_hsd)) {
-                  posthoc_list <- lapply(names(tukey_hsd), function(term) {
-                    df <- as.data.frame(tukey_hsd[[term]])
-                    df <- tibble::rownames_to_column(df, "Comparison")
-                    df <- df %>%
-                      mutate(across(where(is.numeric), ~round(.x, 2))) %>%
-                      mutate(Significance = add_significance_stars(`p adj`))
-                    df$Term <- term # Add term name for combining later
-                    return(df)
-                  })
+                # --- Assumption Tests and Model Metrics ---
+                residuals_fit <- residuals(fit)
+                fitted_vals <- fitted(fit)
+                
+                # Shapiro-Wilk test for normality
+                shapiro_res <- tryCatch({
+                  st <- shapiro.test(residuals_fit)
+                  data.frame(Test = "Shapiro-Wilk (Normality)", Statistic = round(st$statistic, 3), P_Value = round(st$p.value, 4))
+                }, error = function(e) data.frame(Test = "Shapiro-Wilk (Normality)", Statistic = NA, P_Value = NA))
+                
+                # Bartlett's test for homogeneity of variance (across all combination groups)
+                grouping_factor <- interaction(df[, factor_cols, drop = FALSE])
+                bartlett_res <- tryCatch({
+                  bt <- bartlett.test(residuals_fit ~ grouping_factor)
+                  data.frame(Test = "Bartlett's Test (Homogeneity of Variance)", Statistic = round(bt$statistic, 3), P_Value = round(bt$p.value, 4))
+                }, error = function(e) data.frame(Test = "Bartlett's Test (Homogeneity of Variance)", Statistic = NA, P_Value = NA))
+                
+                assumptions_df <- dplyr::bind_rows(shapiro_res, bartlett_res)
+                
+                # Model Metrics (R2 and CV)
+                summary_fit <- summary.lm(fit)
+                r_squared <- round(summary_fit$r.squared, 3)
+                grand_mean <- mean(df[[trait_local]], na.rm = TRUE)
+                mse <- anova_df$meansq[anova_df$term == "Residuals"]
+                experiment_cv <- ifelse(length(mse) > 0 && !is.na(mse[1]), round((sqrt(mse[1]) / grand_mean) * 100, 2), NA)
+                metrics_df <- data.frame(Metric = c("R-squared", "Experiment CV (%)", "Grand Mean"), Value = c(r_squared, experiment_cv, round(grand_mean, 2)))
+                
+                # Diagnostic Plots
+                p_res_fit <- ggplot(data.frame(Fitted = fitted_vals, Residuals = residuals_fit), aes(x = Fitted, y = Residuals)) +
+                  geom_point(color = "steelblue", alpha = 0.7) + geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+                  theme_bw() + labs(title = paste("Residuals vs Fitted:", trait_local), x = "Fitted Values", y = "Residuals")
+                  
+                p_qq <- ggplot(data.frame(Residuals = residuals_fit), aes(sample = Residuals)) +
+                  stat_qq(color = "steelblue", alpha = 0.7) + stat_qq_line(color = "red") +
+                  theme_bw() + labs(title = paste("Normal Q-Q:", trait_local), x = "Theoretical Quantiles", y = "Standardized Residuals")
+                  
+                crd_results[[paste0("assumptions_", trait_id)]] <- assumptions_df
+                crd_results[[paste0("metrics_", trait_id)]] <- metrics_df
+                crd_results[[paste0("diag_plots_", trait_id)]] <- list(res_fit = p_res_fit, qq = p_qq)
+                # --- End Assumption Tests ---
+                
+                # Filter for significant terms only
+                significant_terms <- anova_df$term[!is.na(anova_df$p.value) & anova_df$p.value < 0.05 & anova_df$term != "Residuals"]
+                
+                if (length(significant_terms) > 0) {
+                  tukey_hsd <- tryCatch(TukeyHSD(fit, which = significant_terms), error = function(e) NULL)
+                  if (!is.null(tukey_hsd)) {
+                    posthoc_list <- lapply(names(tukey_hsd), function(term) {
+                      df <- as.data.frame(tukey_hsd[[term]])
+                      df <- tibble::rownames_to_column(df, "Comparison")
+                      df <- df %>%
+                        mutate(across(where(is.numeric), ~round(.x, 2))) %>%
+                        mutate(Significance = add_significance_stars(`p adj`))
+                      df$Term <- term # Add term name for combining later
+                      return(df)
+                    })
+                    names(posthoc_list) <- names(tukey_hsd)
+                    crd_results[[paste0("posthoc_msg_", trait_id)]] <- paste("Displaying Tukey HSD only for significant ANOVA terms (p < 0.05):", paste(significant_terms, collapse = ", "))
+                  } else {
+                    posthoc_list <- list(error = data.frame(Message = "Tukey HSD could not be computed."))
+                    crd_results[[paste0("posthoc_msg_", trait_id)]] <- ""
+                  }
                 } else {
-                  posthoc_list <- list(error = data.frame(Message = "Tukey HSD could not be computed."))
+                  posthoc_list <- list()
+                  crd_results[[paste0("posthoc_msg_", trait_id)]] <- "No significant terms found in ANOVA (p < 0.05). Post-hoc tests are not statistically appropriate."
                 }
               } else { anova_df <- data.frame(Message = "ANOVA failed.") }
             }
@@ -896,17 +1014,48 @@ analysisServer <- function(id, home_inputs) {
             # Render outputs as plain tables
             output[[paste0("crd_anova_", trait_id)]] <- renderTable({ req(crd_results[[paste0("anova_table_", trait_id)]]) })
             
-            output[[paste0("crd_posthoc_", trait_id)]] <- renderTable({
+            output[[paste0("crd_posthoc_ui_", trait_id)]] <- renderUI({
+              msg <- crd_results[[paste0("posthoc_msg_", trait_id)]]
+              tagList(
+                if (!is.null(msg) && msg != "") {
+                   cls <- if (grepl("No significant", msg)) "alert alert-warning" else "alert alert-info"
+                   tags$div(class = cls, style = "margin-top: 15px;", msg)
+                } else NULL,
+                tableOutput(ns(paste0("crd_posthoc_tbl_", trait_id)))
+              )
+            })
+            
+            output[[paste0("crd_posthoc_tbl_", trait_id)]] <- renderTable({
               req(crd_results[[paste0("posthoc_tables_", trait_id)]])
               tables <- crd_results[[paste0("posthoc_tables_", trait_id)]]
-              if (length(tables) > 0 && !is.null(names(tables))) {
-                bind_rows(tables, .id = NULL)
+              if (length(tables) > 0) {
+                dplyr::bind_rows(tables)
               } else {
-                data.frame(Message = "No post-hoc results to display.")
+                NULL
               }
             })
             
             output[[paste0("crd_missing_", trait_id)]] <- renderTable({ req(crd_results[[paste0("missing_combinations_", trait_id)]]) })
+            
+            # Render Diagnostics UI
+            output[[paste0("crd_diagnostics_panel_", trait_id)]] <- renderUI({
+              tagList(
+                h4("Model Fit Metrics"),
+                tableOutput(ns(paste0("crd_metrics_", trait_id))),
+                h4("Assumption Tests"),
+                tableOutput(ns(paste0("crd_assumptions_", trait_id))),
+                h4("Diagnostic Plots"),
+                fluidRow(
+                  column(6, plotOutput(ns(paste0("crd_diag_resfit_", trait_id)))),
+                  column(6, plotOutput(ns(paste0("crd_diag_qq_", trait_id))))
+                )
+              )
+            })
+            
+            output[[paste0("crd_metrics_", trait_id)]] <- renderTable({ req(crd_results[[paste0("metrics_", trait_id)]]) })
+            output[[paste0("crd_assumptions_", trait_id)]] <- renderTable({ req(crd_results[[paste0("assumptions_", trait_id)]]) })
+            output[[paste0("crd_diag_resfit_", trait_id)]] <- renderPlot({ req(crd_results[[paste0("diag_plots_", trait_id)]]$res_fit); print(crd_results[[paste0("diag_plots_", trait_id)]]$res_fit) })
+            output[[paste0("crd_diag_qq_", trait_id)]] <- renderPlot({ req(crd_results[[paste0("diag_plots_", trait_id)]]$qq); print(crd_results[[paste0("diag_plots_", trait_id)]]$qq) })
           })
         }
       })
@@ -1197,10 +1346,21 @@ analysisServer <- function(id, home_inputs) {
           
           # 3. Check for and save each result type using its unique key.
           
-          # --- Save Summary CSV ---
+          # --- Save Summary CSVs ---
+          # 1. Main Effects
+          main_key <- paste0("summary_main_effects_", trait_id)
+          if (!is.null(res[[main_key]])) {
+            for (fac in names(res[[main_key]])) {
+              fname <- file.path(tmp_dir, paste0(tname, "_summary_MainEffect_", sanitize(fac), ".csv"))
+              write.csv(res[[main_key]][[fac]], fname, row.names = FALSE)
+              files_to_zip <- c(files_to_zip, fname)
+            }
+          }
+          
+          # 2. Full Interaction
           summary_key <- paste0("summary_", trait_id)
           if (!is.null(res[[summary_key]])) {
-            fname <- file.path(tmp_dir, paste0(tname, "_summary.csv"))
+            fname <- file.path(tmp_dir, paste0(tname, "_summary_FullInteraction.csv"))
             write.csv(res[[summary_key]], fname, row.names = FALSE)
             files_to_zip <- c(files_to_zip, fname)
           }
@@ -1213,18 +1373,12 @@ analysisServer <- function(id, home_inputs) {
             files_to_zip <- c(files_to_zip, fname)
           }
           
-          # --- Save Post-Hoc Text File ---
+          # --- Save Post-Hoc Results CSV ---
           posthoc_key <- paste0("posthoc_tables_", trait_id)
-          if (!is.null(res[[posthoc_key]]) && length(res[[posthoc_key]]) > 0) {
-            # Combine all post-hoc tables into one text block
-            all_posthoc_text <- paste(sapply(names(res[[posthoc_key]]), function(term) {
-              term_header <- paste(rep("=", 20), collapse = "")
-              paste(term_header, "\nTukey HSD for term:", term, "\n", term_header, "\n",
-                    paste(utils::capture.output(res[[posthoc_key]][[term]]), collapse = "\n"))
-            }), collapse = "\n\n")
-            
-            fname <- file.path(tmp_dir, paste0(tname, "_posthoc_results.txt"))
-            writeLines(all_posthoc_text, fname)
+          if (!is.null(res[[posthoc_key]]) && length(res[[posthoc_key]]) > 0 && is.null(res[[posthoc_key]]$error)) {
+            combined_posthoc <- dplyr::bind_rows(res[[posthoc_key]])
+            fname <- file.path(tmp_dir, paste0(tname, "_posthoc_results.csv"))
+            write.csv(combined_posthoc, fname, row.names = FALSE)
             files_to_zip <- c(files_to_zip, fname)
           }
           
@@ -1233,6 +1387,27 @@ analysisServer <- function(id, home_inputs) {
           if (!is.null(res[[missing_key]]) && nrow(res[[missing_key]]) > 0) {
             fname <- file.path(tmp_dir, paste0(tname, "_missing_combinations.csv"))
             write.csv(res[[missing_key]], fname, row.names = FALSE)
+            files_to_zip <- c(files_to_zip, fname)
+          }
+          
+          # --- Save Assumptions and Metrics CSV ---
+          assumptions_key <- paste0("assumptions_", trait_id)
+          metrics_key <- paste0("metrics_", trait_id)
+          if (!is.null(res[[assumptions_key]]) && !is.null(res[[metrics_key]])) {
+            fname <- file.path(tmp_dir, paste0(tname, "_assumptions_metrics.csv"))
+            metrics_fmt <- data.frame(Test = res[[metrics_key]]$Metric, Statistic = res[[metrics_key]]$Value, P_Value = NA)
+            write.csv(dplyr::bind_rows(metrics_fmt, res[[assumptions_key]]), fname, row.names = FALSE)
+            files_to_zip <- c(files_to_zip, fname)
+          }
+          
+          # --- Save Diagnostic Plots PDF ---
+          diag_plots_key <- paste0("diag_plots_", trait_id)
+          if (!is.null(res[[diag_plots_key]])) {
+            fname <- file.path(tmp_dir, paste0(tname, "_diagnostic_plots.pdf"))
+            pdf(fname, width = 10, height = 5)
+            print(res[[diag_plots_key]]$res_fit)
+            print(res[[diag_plots_key]]$qq)
+            dev.off()
             files_to_zip <- c(files_to_zip, fname)
           }
           
@@ -1344,9 +1519,9 @@ analysisServer <- function(id, home_inputs) {
           if (!is.null(pca_results()$pca)) {
             pca_obj <- pca_results()$pca
             
-            pdf(file.path(tmp_dir, "PCA_Biplot.pdf")); print(fviz_pca_ind(pca_obj, repel = TRUE)); dev.off()
+            pdf(file.path(tmp_dir, "PCA_Biplot.pdf")); print(fviz_pca_ind(pca_obj, col.ind = "cos2", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)); dev.off()
             pdf(file.path(tmp_dir, "PCA_Scree.pdf")); print(fviz_screeplot(pca_obj, addlabels = TRUE)); dev.off()
-            pdf(file.path(tmp_dir, "PCA_Contributions.pdf")); print(fviz_pca_var(pca_obj)); dev.off()
+            pdf(file.path(tmp_dir, "PCA_Contributions.pdf")); print(fviz_pca_var(pca_obj, col.var = "contrib", gradient.cols = c("white", "blue", "red"))); dev.off()
             write.csv(pca_obj$ind$coord, file.path(tmp_dir, "PCA_Coordinates.csv"))
             write.csv(factoextra::get_eigenvalue(pca_obj), file.path(tmp_dir, "PCA_Eigenvalues.csv"))
             
@@ -1357,11 +1532,26 @@ analysisServer <- function(id, home_inputs) {
           # --- Correlation Plot & Data ---
           if (!is.null(pca_results()$pca$call$X)) {
             corr_data <- pca_results()$pca$call$X
+            corr_matrix <- cor(corr_data, use="complete.obs")
+            corr_obj <- corrplot::cor.mtest(corr_data, conf.level = 0.95)
+            
             pdf(file.path(tmp_dir, "Correlation_MatrixPlot.pdf"), width=8, height=8)
-            corrplot::corrplot(cor(corr_data, use="complete.obs"), method="number", type="upper")
+            corrplot::corrplot(
+              corr_matrix,
+              method = "number",
+              addCoef.col = "black",
+              type = "upper",
+              order = "hclust",
+              p.mat = corr_obj$p,
+              sig.level = 0.05,
+              insig = "pch",
+              tl.col = "black",
+              tl.srt = 45,
+              number.cex = 0.9
+            )
             dev.off()
             
-            write.csv(cor(corr_data, use="complete.obs"), file.path(tmp_dir, "Correlation_Matrix.csv"))
+            write.csv(corr_matrix, file.path(tmp_dir, "Correlation_Matrix.csv"))
             
             files_to_zip <- c(files_to_zip, file.path(tmp_dir, "Correlation_MatrixPlot.pdf"), 
                               file.path(tmp_dir, "Correlation_Matrix.csv"))
@@ -1376,5 +1566,62 @@ analysisServer <- function(id, home_inputs) {
       contentType = "application/zip"
     )
     
+    # --- Data Export Logic ---
+    export_multi_data <- eventReactive(input$export_multi, {
+      req(model_results())
+      res <- model_results()
+      trait_dfs <- purrr::map(names(res), function(tr) {
+        tr_res <- if(!is.null(res[[tr]]$Fixed)) res[[tr]]$Fixed else res[[tr]]$Random
+        tbl <- if(!is.null(tr_res$blue_table)) tr_res$blue_table else tr_res$blup_table
+        if (is.null(tbl)) return(NULL)
+        
+        # Look for the combined BLUE/BLUP column
+        comb_col <- grep("^(BLUE_|BLUP_)Combined", names(tbl), value=TRUE)
+        if(length(comb_col) == 0) return(NULL)
+        
+        tbl %>% 
+          dplyr::select(Genotype = 1, !!sym(tr) := all_of(comb_col))
+      })
+      trait_dfs <- Filter(Negate(is.null), trait_dfs)
+      if(length(trait_dfs) > 0) {
+        purrr::reduce(trait_dfs, dplyr::full_join, by = "Genotype")
+      } else {
+        NULL
+      }
+    })
+    
+    export_stab_data <- eventReactive(input$export_stab, {
+      req(model_results())
+      res <- model_results()
+      trait_dfs <- purrr::map(names(res), function(tr) {
+        tr_res <- if(!is.null(res[[tr]]$Fixed)) res[[tr]]$Fixed else res[[tr]]$Random
+        tbl <- if(!is.null(tr_res$blue_table)) tr_res$blue_table else tr_res$blup_table
+        if (is.null(tbl)) return(NULL)
+        
+        # Look for environment-wise columns (starts with BLUE_ or BLUP_, but NOT _Combined)
+        env_cols <- grep("^(BLUE_|BLUP_)(?!Combined)", names(tbl), value=TRUE, perl=TRUE)
+        if(length(env_cols) == 0) return(NULL)
+        
+        tbl %>% 
+          dplyr::select(Genotype = 1, all_of(env_cols)) %>%
+          tidyr::pivot_longer(cols = all_of(env_cols), names_to = "Environment", values_to = tr) %>%
+          dplyr::mutate(Environment = gsub("^(BLUE_|BLUP_)", "", Environment))
+      })
+      trait_dfs <- Filter(Negate(is.null), trait_dfs)
+      if(length(trait_dfs) > 0) {
+        purrr::reduce(trait_dfs, dplyr::full_join, by = c("Genotype", "Environment"))
+      } else {
+        showNotification("No environment-wise data found. Ensure 'Compute Environment-wise BLUE/BLUP' was checked.", type="warning")
+        NULL
+      }
+    })
+    
+    return(list(
+      export_multi_event = reactive({ input$export_multi }),
+      export_multi_type  = reactive({ input$export_multi_type }),
+      export_multi_data = export_multi_data,
+      export_stab_event = reactive({ input$export_stab }),
+      export_stab_data = export_stab_data
+    ))
   })
 }

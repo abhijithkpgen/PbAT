@@ -154,6 +154,14 @@ designExperimentUI <- function(id) {
   ns <- NS(id)
   
   tabPanel("Design Your Trial",
+           div(
+             class = "alert alert-info shadow-sm", 
+             style = "margin: 0px 0px 20px 0px; border-left: 5px solid #1F4E79; background-color: #f8f9fa; color: #333; padding: 12px 20px; border-radius: 8px; font-size: 14px;",
+             icon("lightbulb", style="color:#f39c12; font-size: 16px; margin-right: 8px;"), 
+             tags$b("Feeling stuck?"), 
+             " Check out ", 
+             tags$a("this video tutorial.", href = "https://youtu.be/obwfvVxWULI", target = "_blank", style="color: #1F4E79; font-weight: bold; text-decoration: underline;")
+           ),
            sidebarLayout(
              sidebarPanel(
                width = 3,
@@ -167,8 +175,7 @@ designExperimentUI <- function(id) {
                  tabPanel("Visualize Layout", 
                           h4("Interactive Field Plot"),
                           p("Hover over the plots to see details. Use the tools in the top-right corner to pan, zoom, and save a static image."),
-                          # CORRECTED: Changed to uiOutput to allow dynamic rendering
-                          uiOutput(ns("layout_plot_ui"))
+                          plotlyOutput(ns("layout_plot"), height = "750px")
                  ),
                  tabPanel("Field Book", 
                           h4("Generated Field Layout Table"),
@@ -201,8 +208,10 @@ designExperimentServer <- function(id, home_inputs) {
       design <- active_design()
       req(design)
       
+      step_header <- function(step, txt) h4(div(style="margin-bottom:6px;margin-top:10px;color:#216E60;font-size:16px;", paste0("Step ", step, ": ", txt)))
+      
       tagList(
-        h4("Step 1: Genotype Input"),
+        step_header(1, "Genotype Input"),
         radioButtons(ns("geno_input_type"), "Genotype Input Method",
                      choices = c("Custom", "System Generated"), selected = "Custom"),
         
@@ -239,7 +248,7 @@ designExperimentServer <- function(id, home_inputs) {
         ),
         
         hr(),
-        h4("Step 2: Set Parameters"),
+        step_header(2, "Set Parameters"),
         if (design == "rcbd") {
           tagList(
             numericInput(ns("rcbd_reps"), "Number of Replications", value = 3, min = 2),
@@ -258,12 +267,14 @@ designExperimentServer <- function(id, home_inputs) {
           )
         },
         hr(),
-        h4("Step 3: Generate & Download"),
-        actionButton(ns("generate_design"), "Generate Design", class = "btn-primary", style="width:100%;"),
-        br(), br(),
-        downloadButton(ns("download_csv"), "Download Field Book (CSV)", class="btn-success", style="width:100%;"),
-        br(), br(),
-        downloadButton(ns("download_pdf"), "Download Layout Plot (PDF)", class="btn-info", style="width:100%;")
+        step_header(3, "Generate & Download"),
+        actionButton(ns("generate_design"), "Generate Design", class = "btn-primary", style="width:100%; margin-bottom: 15px;"),
+        fluidRow(
+          column(6, style = "padding-right: 5px;",
+                 downloadButton(ns("download_csv"), "CSV Field Book", class="btn-outline-success", style="width:100%; padding: 6px; font-size: 13px;")),
+          column(6, style = "padding-left: 5px;",
+                 downloadButton(ns("download_pdf"), "Layout PDF", class="btn-outline-info", style="width:100%; padding: 6px; font-size: 13px;"))
+        )
       )
     })
     
@@ -487,20 +498,29 @@ designExperimentServer <- function(id, home_inputs) {
         final_cols_exist <- final_cols[final_cols %in% names(final_df)]
         rv$design_output <- final_df[, final_cols_exist]
         
+        # Dynamically scale text size based on number of columns so it fits in PDF
+        num_cols <- max(plot_data$Column, na.rm = TRUE)
+        dynamic_text_size <- ifelse(num_cols > 40, 1.5, ifelse(num_cols > 20, 2.2, 3))
+        
         p <- ggplot(plot_data, aes(x = as.factor(Column), y = as.factor(Row), text = tooltip, fill = as.factor(Genotype))) +
-          geom_tile(color = "white", size = 0.5, width = 0.95, height = 0.95) +
-          geom_text(aes(label = box_label), size = 2.5, color = "black") +
+          geom_tile(color = "black", linewidth = 0.6, width = 0.98, height = 0.98) +
+          geom_text(aes(label = box_label), size = dynamic_text_size, color = "black", fontface = "bold", angle = 90, lineheight = 0.8) +
           labs(title = paste("Field Layout for", toupper(design)), x = "Column", y = "Row", fill = "Genotype") +
           theme_minimal(base_size = 14) +
-          theme(panel.grid = element_blank(), legend.position = "none")
+          theme(
+            panel.grid = element_blank(), 
+            legend.position = "none",
+            axis.text = element_text(color = "#333333"),
+            plot.title = element_text(face = "bold", color = "#1F4E79")
+          )
         
         if (design == "augmented") {
           check_data <- plot_data[plot_data$Genotype %in% check_names, ]
           if (nrow(check_data) > 0) {
             p <- p + geom_tile(
               data = check_data, aes(color = "Check Plots"), 
-              fill = NA, linewidth = 1.2, width = 0.95, height = 0.95, inherit.aes = TRUE
-            ) + scale_color_manual(name = "", values = c("Check Plots" = "black"))
+              fill = NA, linewidth = 1.5, width = 0.98, height = 0.98, inherit.aes = TRUE
+            ) + scale_color_manual(name = "", values = c("Check Plots" = "#e74c3c"))
           }
         }
         
@@ -520,15 +540,18 @@ designExperimentServer <- function(id, home_inputs) {
       rv$design_output
     })
     
-    # CORRECTED: This ensures the plot UI is dynamically created and then rendered
-    output$layout_plot_ui <- renderUI({
-      req(rv$plot_object)
-      plotly::plotlyOutput(ns("layout_plot"), height = "800px")
-    })
-    
     output$layout_plot <- plotly::renderPlotly({
       req(rv$plot_object)
-      plotly::ggplotly(rv$plot_object, tooltip = "text")
+      p <- plotly::ggplotly(rv$plot_object, tooltip = "text") %>%
+        plotly::layout(margin = list(t = 50, b = 50, l = 50, r = 50))
+      
+      # Force text rotation in Plotly (since ggplotly ignores geom_text angle)
+      for (i in seq_along(p$x$data)) {
+        if (!is.null(p$x$data[[i]]$mode) && grepl("text", p$x$data[[i]]$mode)) {
+          p$x$data[[i]]$textangle <- -90
+        }
+      }
+      p
     })
     
     # --- Download Handlers ---
