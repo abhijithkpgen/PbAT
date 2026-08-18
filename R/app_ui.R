@@ -19,6 +19,10 @@ app_ui <- function() {
     header = tagList(
       shinyjs::useShinyjs(),
       waiter::use_waiter(),
+      shinyjs::hidden(
+        DT::DTOutput("hidden_dt_dependency"),
+        plotly::plotlyOutput("hidden_plotly_dependency")
+      ),
       
       waiter::waiter_show_on_load(
         html = tagList(

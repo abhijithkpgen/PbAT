@@ -144,8 +144,8 @@ multivariate_analysis_server <- function(id, shared_data) {
       
       if (subtype == "pca") {
         tabsetPanel(
-          tabPanel("Individual Biplot", plotlyOutput(ns("multi_pca_biplot"), height = "650px")),
-          tabPanel("Scree Plot", plotlyOutput(ns("multi_pca_scree"), height = "600px")),
+          tabPanel("Individual Biplot", plotOutput(ns("multi_pca_biplot"), height = "650px")),
+          tabPanel("Scree Plot", plotOutput(ns("multi_pca_scree"), height = "600px")),
           tabPanel("Variable Contributions", plotOutput(ns("multi_pca_varcontrib"), height = "650px")),
           tabPanel("Summary Table", DT::DTOutput(ns("multi_pca_eigen")))
         )
@@ -184,7 +184,7 @@ multivariate_analysis_server <- function(id, shared_data) {
         res.pca <- FactoMineR::PCA(df_pca_numeric, graph = FALSE)
         pca_results(list(pca = res.pca, data = df_pca_numeric))
         
-        output$multi_pca_biplot <- renderPlotly({
+        output$multi_pca_biplot <- renderPlot({
           gradient_palettes <- list(
             default = c("#00AFBB", "#E7B800", "#FC4E07"),
             viridis = c("#440154FF", "#21908CFF", "#FDE725FF"),
@@ -204,19 +204,15 @@ multivariate_analysis_server <- function(id, shared_data) {
                             repel = input$pca_repel)
           
           # Apply the user-selected theme
-          p <- p + switch(input$pca_theme,
+          p + switch(input$pca_theme,
                           "minimal" = theme_minimal(),
                           "classic" = theme_classic(),
                           "bw" = theme_bw())
-          
-          # Convert to interactive plotly (Note: Plotly may ignore repel, but it works in PDF)
-          ggplotly(p, tooltip = "all")
         })
         
-        output$multi_pca_scree <- renderPlotly({
-          p <- fviz_screeplot(res.pca, addlabels = TRUE) + 
+        output$multi_pca_scree <- renderPlot({
+          fviz_screeplot(res.pca, addlabels = TRUE) + 
             switch(input$pca_theme, "minimal" = theme_minimal(), "classic" = theme_classic(), "bw" = theme_bw())
-          ggplotly(p)
         })
         
         output$multi_pca_varcontrib <- renderPlot({
