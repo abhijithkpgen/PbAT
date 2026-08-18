@@ -14,6 +14,8 @@ app_ui <- function() {
       fg = "black",
       primary = "#1F4E79", 
       secondary = "#3FA796",
+      base_font = "Inter",
+      heading_font = "Inter",
       "navbar-light-bg" = "white"
     ),
     header = tagList(
@@ -53,10 +55,14 @@ app_ui <- function() {
         
         tags$style(HTML("
       /* --- Main Body & Layout --- */
+      :root {
+        --bs-body-font-family: 'Inter', sans-serif !important;
+        --bs-heading-font-family: 'Inter', sans-serif !important;
+      }
       body {
         background: #5EBEB0;
         background: linear-gradient(135deg, #7CD1C4 0%, #4FB3A4 100%);
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', sans-serif !important;
       }
       .home-container {
         display: flex;
