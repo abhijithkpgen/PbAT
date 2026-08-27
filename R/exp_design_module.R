@@ -608,13 +608,13 @@ analysisServer <- function(id, home_inputs) {
           ) +
           scale_fill_brewer(palette = input$palette)
         
-        qqplots <- df_trait %>%
-          dplyr::group_split(Environment) %>%
-          purrr::map(~ ggplot(.x, aes(sample = .data[[trait]])) +
-                       stat_qq() + stat_qq_line() +
-                       ggtitle(paste("QQ -", unique(.x$Environment))) +
-                       theme_minimal(base_size = 14)
-          )
+        qqplots <- list(
+          ggplot(df_trait, aes(sample = .data[[trait]])) +
+            stat_qq() + stat_qq_line() +
+            facet_wrap(~ Environment) +
+            ggtitle(paste("QQ Plot of", trait)) +
+            theme_minimal(base_size = 14)
+        )
         
         list(summary = summary_tbl, boxplot = boxplot, qq = qqplots)
       })
@@ -637,7 +637,7 @@ analysisServer <- function(id, home_inputs) {
             h4("QQ Plot(s)"),
             fluidRow(
               purrr::map(seq_along(results_list[[trait]]$qq), function(i) {
-                column(4, plotOutput(ns(paste0("qq_", safe_trait, "_", i))))
+                column(12, plotOutput(ns(paste0("qq_", safe_trait, "_", i))))
               })
             )
           )
@@ -1504,44 +1504,106 @@ analysisServer <- function(id, home_inputs) {
         descriptive_list <- descriptive_results()
         model_list <- model_results()
         
+        # --- Prepare Combined Data Frames ---
+        comb_desc_sum <- list()
+        comb_boxplots <- list()
+        comb_qqplots <- list()
+        
+        comb_fixed_anova <- list()
+        comb_fixed_blues <- list()
+        comb_fixed_lrt <- list()
+        comb_fixed_varcomps <- list()
+        
+        comb_rand_blups <- list()
+        comb_rand_lrt <- list()
+        comb_rand_varcomps <- list()
+        comb_rand_gen_params <- list()
+        
         for (trait in names(model_list)) {
           tryCatch({
-            # --- Save Descriptive Results ---
+            # Descriptive
             if (!is.null(descriptive_list[[trait]])) {
               desc_res <- descriptive_list[[trait]]
-              fname_sum <- file.path(tmp_dir, paste0(trait, "_descriptive_summary.csv"))
-              write.csv(desc_res$summary, fname_sum, row.names = FALSE)
-              
-              fname_box <- file.path(tmp_dir, paste0(trait, "_boxplot.pdf"))
-              pdf(fname_box, width = 11, height = 8.5); print(desc_res$boxplot); dev.off()
-              
-              if (!is.null(desc_res$qq) && length(desc_res$qq) > 0) {
-                fname_qq <- file.path(tmp_dir, paste0(trait, "_qqplots.pdf"))
-                pdf(fname_qq, width = 11, height = 8.5)
-                for (p in desc_res$qq) { print(p) }
-                dev.off()
-                files_to_zip <- c(files_to_zip, fname_qq)
+              comb_desc_sum[[trait]] <- desc_res$summary
+              comb_boxplots[[trait]] <- desc_res$boxplot
+              if (!is.null(desc_res$qq)) {
+                comb_qqplots <- c(comb_qqplots, desc_res$qq)
               }
-              files_to_zip <- c(files_to_zip, fname_sum, fname_box)
             }
             
-            # --- Save Model Results ---
+            # Model
             trait_model_res <- model_list[[trait]]
+            add_trait_col <- function(df, tr) { 
+              if(is.data.frame(df) && nrow(df)>0) { 
+                # Avoid duplicating Trait column if it exists
+                if(!"Trait" %in% names(df)) df <- cbind(Trait = tr, df)
+                return(df)
+              } 
+              return(NULL) 
+            }
+            
             if (!is.null(trait_model_res$Fixed)) {
               fixed_res <- trait_model_res$Fixed
-              if (is.data.frame(fixed_res$anova_table)) { fname <- file.path(tmp_dir, paste0(trait, "_Fixed_ANOVA.csv")); write.csv(fixed_res$anova_table, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
-              if (is.data.frame(fixed_res$blue_table)) { fname <- file.path(tmp_dir, paste0(trait, "_Fixed_BLUEs.csv")); write.csv(fixed_res$blue_table, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
-              if (is.data.frame(fixed_res$lrt_table)) { fname <- file.path(tmp_dir, paste0(trait, "_Fixed_LRT.csv")); write.csv(fixed_res$lrt_table, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
-              if (is.data.frame(fixed_res$var_comps)) { fname <- file.path(tmp_dir, paste0(trait, "_Fixed_VarComps.csv")); write.csv(fixed_res$var_comps, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
+              comb_fixed_anova[[trait]] <- add_trait_col(fixed_res$anova_table, trait)
+              comb_fixed_blues[[trait]] <- add_trait_col(fixed_res$blue_table, trait)
+              comb_fixed_lrt[[trait]] <- add_trait_col(fixed_res$lrt_table, trait)
+              comb_fixed_varcomps[[trait]] <- add_trait_col(fixed_res$var_comps, trait)
             }
             if (!is.null(trait_model_res$Random)) {
               rand_res <- trait_model_res$Random
-              if (is.data.frame(rand_res$blup_table)) { fname <- file.path(tmp_dir, paste0(trait, "_Random_BLUPs.csv")); write.csv(rand_res$blup_table, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
-              if (is.data.frame(rand_res$lrt_table)) { fname <- file.path(tmp_dir, paste0(trait, "_Random_LRT.csv")); write.csv(rand_res$lrt_table, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
-              if (is.data.frame(rand_res$var_comps)) { fname <- file.path(tmp_dir, paste0(trait, "_Random_VarComps.csv")); write.csv(rand_res$var_comps, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
-              if (is.data.frame(rand_res$genetic_params)) { fname <- file.path(tmp_dir, paste0(trait, "_Random_Genetic_Params.csv")); write.csv(rand_res$genetic_params, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
+              comb_rand_blups[[trait]] <- add_trait_col(rand_res$blup_table, trait)
+              comb_rand_lrt[[trait]] <- add_trait_col(rand_res$lrt_table, trait)
+              comb_rand_varcomps[[trait]] <- add_trait_col(rand_res$var_comps, trait)
+              comb_rand_gen_params[[trait]] <- add_trait_col(rand_res$genetic_params, trait)
             }
-          }, error = function(e) { showNotification(paste("Error for trait", trait, ":", e$message), type = "warning") })
+          }, error = function(e) { showNotification(paste("Error combining for trait", trait, ":", e$message), type = "warning") })
+        }
+        
+        # --- Write Combined Excel Files ---
+        write_comb_xlsx <- function(list_dfs, filename) {
+           list_dfs <- Filter(Negate(is.null), list_dfs)
+           if (length(list_dfs) > 0) {
+             fname <- file.path(tmp_dir, filename)
+             wb <- openxlsx::createWorkbook()
+             for (tr in names(list_dfs)) {
+                sheet_name <- substr(make.names(tr), 1, 31)
+                openxlsx::addWorksheet(wb, sheetName = sheet_name)
+                openxlsx::writeData(wb, sheet = sheet_name, list_dfs[[tr]])
+             }
+             openxlsx::saveWorkbook(wb, fname, overwrite = TRUE)
+             files_to_zip <<- c(files_to_zip, fname)
+           }
+        }
+        
+        write_comb_xlsx(comb_desc_sum, "Combined_Descriptive_Summary.xlsx")
+        
+        write_comb_xlsx(comb_fixed_anova, "Combined_Fixed_ANOVA.xlsx")
+        write_comb_xlsx(comb_fixed_blues, "Combined_Fixed_BLUEs.xlsx")
+        write_comb_xlsx(comb_fixed_lrt, "Combined_Fixed_LRT.xlsx")
+        write_comb_xlsx(comb_fixed_varcomps, "Combined_Fixed_VarComps.xlsx")
+        
+        write_comb_xlsx(comb_rand_blups, "Combined_Random_BLUPs.xlsx")
+        write_comb_xlsx(comb_rand_lrt, "Combined_Random_LRT.xlsx")
+        write_comb_xlsx(comb_rand_varcomps, "Combined_Random_VarComps.xlsx")
+        write_comb_xlsx(comb_rand_gen_params, "Combined_Random_Genetic_Params.xlsx")
+        
+        # --- Write Combined PDFs ---
+        comb_boxplots <- Filter(Negate(is.null), comb_boxplots)
+        if (length(comb_boxplots) > 0) {
+          fname_box <- file.path(tmp_dir, "Combined_Boxplots.pdf")
+          pdf(fname_box, width = 11, height = 8.5)
+          for (p in comb_boxplots) { print(p) }
+          dev.off()
+          files_to_zip <- c(files_to_zip, fname_box)
+        }
+        
+        comb_qqplots <- Filter(Negate(is.null), comb_qqplots)
+        if (length(comb_qqplots) > 0) {
+          fname_qq <- file.path(tmp_dir, "Combined_QQplots.pdf")
+          pdf(fname_qq, width = 11, height = 8.5)
+          for (p in comb_qqplots) { print(p) }
+          dev.off()
+          files_to_zip <- c(files_to_zip, fname_qq)
         }
         
         # CORRECTED FUNCTION CALL
