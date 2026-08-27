@@ -178,6 +178,7 @@ homeUI <- function(id) {
               tags$li("Added Selection Index module"),
               tags$li("Added 1-click Auto-Export of results from Experimental Design to Stability and Multivariate modules"),
               tags$li("Improved CRD analysis with enhanced functionalities"),
+              tags$li("Added Genetic Parameters (H², GCV, PCV, GA) for Mixed Models"),
               tags$li("Added Tutorials for various workflows"),
               tags$li("Fixed customisation rendering in stability & multivariate PDF exports"),
               tags$li("Improved the PCA graphics"),

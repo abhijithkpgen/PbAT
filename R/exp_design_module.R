@@ -247,6 +247,58 @@ analysisServer <- function(id, home_inputs) {
         }
         return(HTML(interpretation))
       }
+      
+      calculate_genetic_parameters <- function(fit_model, df, entry_col, env_col, trait_name) {
+        var_corr <- as.data.frame(lme4::VarCorr(fit_model))
+        var_g <- 0
+        var_ge <- 0
+        var_e <- 0
+        
+        for(i in 1:nrow(var_corr)) {
+          grp <- var_corr$grp[i]
+          vcov <- var_corr$vcov[i]
+          
+          if (is.na(grp) || grp == "Residual") {
+            var_e <- vcov
+          } else if (grp == entry_col) {
+            var_g <- vcov
+          } else if (!is.null(env_col) && grp == paste0(entry_col, ":", env_col)) {
+            var_ge <- vcov
+          }
+        }
+        
+        grand_mean <- mean(df[[trait_name]], na.rm = TRUE)
+        
+        if (var_g == 0) {
+          return(data.frame(
+            Parameter = c("Broad-Sense Heritability (H²)", "Genotypic Variance (Vg)", "Phenotypic Variance (Vp)", "Genotypic Coefficient of Variation (GCV %)", "Phenotypic Coefficient of Variation (PCV %)", "Genetic Advance (GA)", "Genetic Advance as % of Mean (GAM)"),
+            Value = c(0, 0, NA, 0, NA, 0, 0)
+          ))
+        }
+        
+        if (!is.null(env_col) && env_col %in% names(df)) {
+           e <- length(unique(df[[env_col]]))
+           counts <- df %>% dplyr::group_by(!!sym(entry_col), !!sym(env_col)) %>% dplyr::summarise(n = dplyr::n(), .groups = "drop")
+           r_harmonic <- 1 / mean(1 / counts$n)
+           vp <- var_g + (var_ge / e) + (var_e / (r_harmonic * e))
+        } else {
+           counts <- df %>% dplyr::group_by(!!sym(entry_col)) %>% dplyr::summarise(n = dplyr::n(), .groups = "drop")
+           r_harmonic <- 1 / mean(1 / counts$n)
+           vp <- var_g + (var_e / r_harmonic)
+        }
+        
+        H2 <- var_g / vp
+        gcv <- (sqrt(var_g) / grand_mean) * 100
+        pcv <- (sqrt(vp) / grand_mean) * 100
+        ga <- 2.06 * sqrt(vp) * H2
+        gam <- (ga / grand_mean) * 100
+        
+        return(data.frame(
+          Parameter = c("Broad-Sense Heritability (H²)", "Genotypic Variance (Vg)", "Phenotypic Variance (Vp)", "Genotypic Coefficient of Variation (GCV %)", "Phenotypic Coefficient of Variation (PCV %)", "Genetic Advance (GA)", "Genetic Advance as % of Mean (GAM)"),
+          Value = round(c(H2, var_g, vp, gcv, pcv, ga, gam), 3)
+        ))
+      }
+      
       actual_model_type <- model_type
       fallback_msg <- ""
       
@@ -345,6 +397,7 @@ analysisServer <- function(id, home_inputs) {
           results$lrt_table <- data.frame(Message="LRT not computed."); results$lrt_interpretation <- ""
         }
         results$var_comps <- tryCatch({ process_var_comps(fit_rand) }, error = function(e) data.frame(Message = "VarComps error"))
+        results$genetic_params <- tryCatch({ calculate_genetic_parameters(fit_rand, df, entry_col, env_col, trait) }, error = function(e) data.frame(Message = "Genetic Parameters error", Error = e$message))
         results$blup_table <- tryCatch({
           intercept <- lme4::fixef(fit_rand)["(Intercept)"]; 
           blups_comb <- lme4::ranef(fit_rand)[[entry_col]]; 
@@ -741,7 +794,8 @@ analysisServer <- function(id, home_inputs) {
                                              h4("1. Likelihood Ratio Test (LRT)"), create_explanation_ui(paste0("lrt_exp_", tid_prefix), lrt_explanation_content), div(style = "overflow-x: auto;", tableOutput(ns(paste0("lrt_", tid_prefix)))),
                                              uiOutput(ns(paste0("lrt_interp_", tid_prefix))),
                                              h4("2. Variance Components"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("varcomp_", tid_prefix)))),
-                                             h4("3. Best Linear Unbiased Predictors (BLUPs)"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("blups_", tid_prefix))))
+                                             h4("3. Genetic Parameters (H², GCV, PCV, GA)"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("genetic_params_", tid_prefix)))),
+                                             h4("4. Best Linear Unbiased Predictors (BLUPs)"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("blups_", tid_prefix))))
           )
         }
         tabPanel(title = trait_name, do.call(tabsetPanel, unname(model_type_tabs)))
@@ -774,10 +828,10 @@ analysisServer <- function(id, home_inputs) {
             output[[paste0("fallback_warning_", tid_prefix)]] <- renderUI({ if(!is.null(trait_content$Fixed$fallback_message) && trait_content$Fixed$fallback_message != "") { tags$div(class = "alert alert-warning", HTML(trait_content$Fixed$fallback_message)) } })
             output[[paste0("singularity_warning_", tid_prefix)]] <- renderUI({ if(!is.null(trait_content$Fixed$is_singular) && trait_content$Fixed$is_singular) { tags$div(class = "alert alert-warning", trait_content$Fixed$singularity_message) } })
             
-            output[[paste0("anova_", tid_prefix)]] <- renderTable({ print("Rendering anova"); print(my_anova); req(my_anova); my_anova }, rownames = FALSE)
-            output[[paste0("lrt_", tid_prefix)]] <- renderTable({ print("Rendering lrt"); print(my_lrt); req(my_lrt); my_lrt }, rownames = FALSE)
-            output[[paste0("varcomp_", tid_prefix)]] <- renderTable({ print("Rendering varcomp"); print(my_varcomps); req(my_varcomps); my_varcomps }, rownames = FALSE)
-            output[[paste0("blues_", tid_prefix)]] <- renderTable({ print("Rendering blues"); print(my_blues); req(my_blues); my_blues }, rownames = FALSE)
+            output[[paste0("anova_", tid_prefix)]] <- renderTable({ req(my_anova); my_anova }, rownames = FALSE)
+            output[[paste0("lrt_", tid_prefix)]] <- renderTable({ req(my_lrt); my_lrt }, rownames = FALSE)
+            output[[paste0("varcomp_", tid_prefix)]] <- renderTable({ req(my_varcomps); my_varcomps }, rownames = FALSE)
+            output[[paste0("blues_", tid_prefix)]] <- renderTable({ req(my_blues); my_blues }, rownames = FALSE)
           })
         }
         if (!is.null(trait_content$Random)) {
@@ -797,14 +851,16 @@ analysisServer <- function(id, home_inputs) {
             my_lrt <- trait_content$Random$lrt_table
             my_varcomps <- trait_content$Random$var_comps
             my_blups <- trait_content$Random$blup_table
+            my_genetic_params <- trait_content$Random$genetic_params
             
             output[[paste0("equation_", tid_prefix)]] <- renderUI({ req(trait_content$Random$equation_latex); p(trait_content$Random$equation_latex) })
             output[[paste0("lrt_interp_", tid_prefix)]] <- renderUI({ req(trait_content$Random$lrt_interpretation); tags$div(class="alert alert-light", style="margin-top:10px; border-left: 3px solid #142850;", trait_content$Random$lrt_interpretation) })
             output[[paste0("singularity_warning_", tid_prefix)]] <- renderUI({ if(!is.null(trait_content$Random$is_singular) && trait_content$Random$is_singular) { tags$div(class = "alert alert-warning", trait_content$Random$singularity_message) } })
             
-            output[[paste0("lrt_", tid_prefix)]] <- renderTable({ print("Rendering random lrt"); print(my_lrt); req(my_lrt); my_lrt }, rownames = FALSE)
-            output[[paste0("varcomp_", tid_prefix)]] <- renderTable({ print("Rendering random varcomp"); print(my_varcomps); req(my_varcomps); my_varcomps }, rownames = FALSE)
-            output[[paste0("blups_", tid_prefix)]] <- renderTable({ print("Rendering random blups"); print(my_blups); req(my_blups); my_blups }, rownames = FALSE)
+            output[[paste0("lrt_", tid_prefix)]] <- renderTable({ req(my_lrt); my_lrt }, rownames = FALSE)
+            output[[paste0("varcomp_", tid_prefix)]] <- renderTable({ req(my_varcomps); my_varcomps }, rownames = FALSE)
+            output[[paste0("genetic_params_", tid_prefix)]] <- renderTable({ req(my_genetic_params); my_genetic_params }, rownames = FALSE)
+            output[[paste0("blups_", tid_prefix)]] <- renderTable({ req(my_blups); my_blups }, rownames = FALSE)
           })
         }
       })
@@ -1483,6 +1539,7 @@ analysisServer <- function(id, home_inputs) {
               if (is.data.frame(rand_res$blup_table)) { fname <- file.path(tmp_dir, paste0(trait, "_Random_BLUPs.csv")); write.csv(rand_res$blup_table, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
               if (is.data.frame(rand_res$lrt_table)) { fname <- file.path(tmp_dir, paste0(trait, "_Random_LRT.csv")); write.csv(rand_res$lrt_table, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
               if (is.data.frame(rand_res$var_comps)) { fname <- file.path(tmp_dir, paste0(trait, "_Random_VarComps.csv")); write.csv(rand_res$var_comps, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
+              if (is.data.frame(rand_res$genetic_params)) { fname <- file.path(tmp_dir, paste0(trait, "_Random_Genetic_Params.csv")); write.csv(rand_res$genetic_params, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
             }
           }, error = function(e) { showNotification(paste("Error for trait", trait, ":", e$message), type = "warning") })
         }
