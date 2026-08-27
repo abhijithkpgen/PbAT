@@ -271,7 +271,7 @@ analysisServer <- function(id, home_inputs) {
         
         if (var_g == 0) {
           return(data.frame(
-            Parameter = c("Broad-Sense Heritability (H²)", "Genotypic Variance (Vg)", "Phenotypic Variance (Vp)", "Genotypic Coefficient of Variation (GCV %)", "Phenotypic Coefficient of Variation (PCV %)", "Genetic Advance (GA)", "Genetic Advance as % of Mean (GAM)"),
+            Parameter = c("Broad-Sense Heritability (H\u00B2)", "Genotypic Variance (Vg)", "Phenotypic Variance (Vp)", "Genotypic Coefficient of Variation (GCV %)", "Phenotypic Coefficient of Variation (PCV %)", "Genetic Advance (GA)", "Genetic Advance as % of Mean (GAM)"),
             Value = c(0, 0, NA, 0, NA, 0, 0)
           ))
         }
@@ -294,7 +294,7 @@ analysisServer <- function(id, home_inputs) {
         gam <- (ga / grand_mean) * 100
         
         return(data.frame(
-          Parameter = c("Broad-Sense Heritability (H²)", "Genotypic Variance (Vg)", "Phenotypic Variance (Vp)", "Genotypic Coefficient of Variation (GCV %)", "Phenotypic Coefficient of Variation (PCV %)", "Genetic Advance (GA)", "Genetic Advance as % of Mean (GAM)"),
+          Parameter = c("Broad-Sense Heritability (H\u00B2)", "Genotypic Variance (Vg)", "Phenotypic Variance (Vp)", "Genotypic Coefficient of Variation (GCV %)", "Phenotypic Coefficient of Variation (PCV %)", "Genetic Advance (GA)", "Genetic Advance as % of Mean (GAM)"),
           Value = round(c(H2, var_g, vp, gcv, pcv, ga, gam), 3)
         ))
       }
@@ -794,7 +794,7 @@ analysisServer <- function(id, home_inputs) {
                                              h4("1. Likelihood Ratio Test (LRT)"), create_explanation_ui(paste0("lrt_exp_", tid_prefix), lrt_explanation_content), div(style = "overflow-x: auto;", tableOutput(ns(paste0("lrt_", tid_prefix)))),
                                              uiOutput(ns(paste0("lrt_interp_", tid_prefix))),
                                              h4("2. Variance Components"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("varcomp_", tid_prefix)))),
-                                             h4("3. Genetic Parameters (H², GCV, PCV, GA)"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("genetic_params_", tid_prefix)))),
+                                             h4("3. Genetic Parameters (H\u00B2, GCV, PCV, GA)"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("genetic_params_", tid_prefix)))),
                                              h4("4. Best Linear Unbiased Predictors (BLUPs)"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("blups_", tid_prefix))))
           )
         }
