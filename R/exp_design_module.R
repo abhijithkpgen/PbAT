@@ -247,6 +247,58 @@ analysisServer <- function(id, home_inputs) {
         }
         return(HTML(interpretation))
       }
+      
+      calculate_genetic_parameters <- function(fit_model, df, entry_col, env_col, trait_name) {
+        var_corr <- as.data.frame(lme4::VarCorr(fit_model))
+        var_g <- 0
+        var_ge <- 0
+        var_e <- 0
+        
+        for(i in 1:nrow(var_corr)) {
+          grp <- var_corr$grp[i]
+          vcov <- var_corr$vcov[i]
+          
+          if (is.na(grp) || grp == "Residual") {
+            var_e <- vcov
+          } else if (grp == entry_col) {
+            var_g <- vcov
+          } else if (!is.null(env_col) && grp == paste0(entry_col, ":", env_col)) {
+            var_ge <- vcov
+          }
+        }
+        
+        grand_mean <- mean(df[[trait_name]], na.rm = TRUE)
+        
+        if (var_g == 0) {
+          return(data.frame(
+            Parameter = c("Broad-Sense Heritability (H²)", "Genotypic Variance (Vg)", "Phenotypic Variance (Vp)", "Genotypic Coefficient of Variation (GCV %)", "Phenotypic Coefficient of Variation (PCV %)", "Genetic Advance (GA)", "Genetic Advance as % of Mean (GAM)"),
+            Value = c(0, 0, NA, 0, NA, 0, 0)
+          ))
+        }
+        
+        if (!is.null(env_col) && env_col %in% names(df)) {
+           e <- length(unique(df[[env_col]]))
+           counts <- df %>% dplyr::group_by(!!sym(entry_col), !!sym(env_col)) %>% dplyr::summarise(n = dplyr::n(), .groups = "drop")
+           r_harmonic <- 1 / mean(1 / counts$n)
+           vp <- var_g + (var_ge / e) + (var_e / (r_harmonic * e))
+        } else {
+           counts <- df %>% dplyr::group_by(!!sym(entry_col)) %>% dplyr::summarise(n = dplyr::n(), .groups = "drop")
+           r_harmonic <- 1 / mean(1 / counts$n)
+           vp <- var_g + (var_e / r_harmonic)
+        }
+        
+        H2 <- var_g / vp
+        gcv <- (sqrt(var_g) / grand_mean) * 100
+        pcv <- (sqrt(vp) / grand_mean) * 100
+        ga <- 2.06 * sqrt(vp) * H2
+        gam <- (ga / grand_mean) * 100
+        
+        return(data.frame(
+          Parameter = c("Broad-Sense Heritability (H²)", "Genotypic Variance (Vg)", "Phenotypic Variance (Vp)", "Genotypic Coefficient of Variation (GCV %)", "Phenotypic Coefficient of Variation (PCV %)", "Genetic Advance (GA)", "Genetic Advance as % of Mean (GAM)"),
+          Value = round(c(H2, var_g, vp, gcv, pcv, ga, gam), 3)
+        ))
+      }
+      
       actual_model_type <- model_type
       fallback_msg <- ""
       
@@ -345,6 +397,7 @@ analysisServer <- function(id, home_inputs) {
           results$lrt_table <- data.frame(Message="LRT not computed."); results$lrt_interpretation <- ""
         }
         results$var_comps <- tryCatch({ process_var_comps(fit_rand) }, error = function(e) data.frame(Message = "VarComps error"))
+        results$genetic_params <- tryCatch({ calculate_genetic_parameters(fit_rand, df, entry_col, env_col, trait) }, error = function(e) data.frame(Message = "Genetic Parameters error", Error = e$message))
         results$blup_table <- tryCatch({
           intercept <- lme4::fixef(fit_rand)["(Intercept)"]; 
           blups_comb <- lme4::ranef(fit_rand)[[entry_col]]; 
@@ -555,13 +608,13 @@ analysisServer <- function(id, home_inputs) {
           ) +
           scale_fill_brewer(palette = input$palette)
         
-        qqplots <- df_trait %>%
-          dplyr::group_split(Environment) %>%
-          purrr::map(~ ggplot(.x, aes(sample = .data[[trait]])) +
-                       stat_qq() + stat_qq_line() +
-                       ggtitle(paste("QQ -", unique(.x$Environment))) +
-                       theme_minimal(base_size = 14)
-          )
+        qqplots <- list(
+          ggplot(df_trait, aes(sample = .data[[trait]])) +
+            stat_qq() + stat_qq_line() +
+            facet_wrap(~ Environment) +
+            ggtitle(paste("QQ Plot of", trait)) +
+            theme_minimal(base_size = 14)
+        )
         
         list(summary = summary_tbl, boxplot = boxplot, qq = qqplots)
       })
@@ -584,7 +637,7 @@ analysisServer <- function(id, home_inputs) {
             h4("QQ Plot(s)"),
             fluidRow(
               purrr::map(seq_along(results_list[[trait]]$qq), function(i) {
-                column(4, plotOutput(ns(paste0("qq_", safe_trait, "_", i))))
+                column(12, plotOutput(ns(paste0("qq_", safe_trait, "_", i))))
               })
             )
           )
@@ -741,7 +794,8 @@ analysisServer <- function(id, home_inputs) {
                                              h4("1. Likelihood Ratio Test (LRT)"), create_explanation_ui(paste0("lrt_exp_", tid_prefix), lrt_explanation_content), div(style = "overflow-x: auto;", tableOutput(ns(paste0("lrt_", tid_prefix)))),
                                              uiOutput(ns(paste0("lrt_interp_", tid_prefix))),
                                              h4("2. Variance Components"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("varcomp_", tid_prefix)))),
-                                             h4("3. Best Linear Unbiased Predictors (BLUPs)"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("blups_", tid_prefix))))
+                                             h4("3. Genetic Parameters (H², GCV, PCV, GA)"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("genetic_params_", tid_prefix)))),
+                                             h4("4. Best Linear Unbiased Predictors (BLUPs)"), div(style = "overflow-x: auto;", tableOutput(ns(paste0("blups_", tid_prefix))))
           )
         }
         tabPanel(title = trait_name, do.call(tabsetPanel, unname(model_type_tabs)))
@@ -774,10 +828,10 @@ analysisServer <- function(id, home_inputs) {
             output[[paste0("fallback_warning_", tid_prefix)]] <- renderUI({ if(!is.null(trait_content$Fixed$fallback_message) && trait_content$Fixed$fallback_message != "") { tags$div(class = "alert alert-warning", HTML(trait_content$Fixed$fallback_message)) } })
             output[[paste0("singularity_warning_", tid_prefix)]] <- renderUI({ if(!is.null(trait_content$Fixed$is_singular) && trait_content$Fixed$is_singular) { tags$div(class = "alert alert-warning", trait_content$Fixed$singularity_message) } })
             
-            output[[paste0("anova_", tid_prefix)]] <- renderTable({ print("Rendering anova"); print(my_anova); req(my_anova); my_anova }, rownames = FALSE)
-            output[[paste0("lrt_", tid_prefix)]] <- renderTable({ print("Rendering lrt"); print(my_lrt); req(my_lrt); my_lrt }, rownames = FALSE)
-            output[[paste0("varcomp_", tid_prefix)]] <- renderTable({ print("Rendering varcomp"); print(my_varcomps); req(my_varcomps); my_varcomps }, rownames = FALSE)
-            output[[paste0("blues_", tid_prefix)]] <- renderTable({ print("Rendering blues"); print(my_blues); req(my_blues); my_blues }, rownames = FALSE)
+            output[[paste0("anova_", tid_prefix)]] <- renderTable({ req(my_anova); my_anova }, rownames = FALSE)
+            output[[paste0("lrt_", tid_prefix)]] <- renderTable({ req(my_lrt); my_lrt }, rownames = FALSE)
+            output[[paste0("varcomp_", tid_prefix)]] <- renderTable({ req(my_varcomps); my_varcomps }, rownames = FALSE)
+            output[[paste0("blues_", tid_prefix)]] <- renderTable({ req(my_blues); my_blues }, rownames = FALSE)
           })
         }
         if (!is.null(trait_content$Random)) {
@@ -797,14 +851,16 @@ analysisServer <- function(id, home_inputs) {
             my_lrt <- trait_content$Random$lrt_table
             my_varcomps <- trait_content$Random$var_comps
             my_blups <- trait_content$Random$blup_table
+            my_genetic_params <- trait_content$Random$genetic_params
             
             output[[paste0("equation_", tid_prefix)]] <- renderUI({ req(trait_content$Random$equation_latex); p(trait_content$Random$equation_latex) })
             output[[paste0("lrt_interp_", tid_prefix)]] <- renderUI({ req(trait_content$Random$lrt_interpretation); tags$div(class="alert alert-light", style="margin-top:10px; border-left: 3px solid #142850;", trait_content$Random$lrt_interpretation) })
             output[[paste0("singularity_warning_", tid_prefix)]] <- renderUI({ if(!is.null(trait_content$Random$is_singular) && trait_content$Random$is_singular) { tags$div(class = "alert alert-warning", trait_content$Random$singularity_message) } })
             
-            output[[paste0("lrt_", tid_prefix)]] <- renderTable({ print("Rendering random lrt"); print(my_lrt); req(my_lrt); my_lrt }, rownames = FALSE)
-            output[[paste0("varcomp_", tid_prefix)]] <- renderTable({ print("Rendering random varcomp"); print(my_varcomps); req(my_varcomps); my_varcomps }, rownames = FALSE)
-            output[[paste0("blups_", tid_prefix)]] <- renderTable({ print("Rendering random blups"); print(my_blups); req(my_blups); my_blups }, rownames = FALSE)
+            output[[paste0("lrt_", tid_prefix)]] <- renderTable({ req(my_lrt); my_lrt }, rownames = FALSE)
+            output[[paste0("varcomp_", tid_prefix)]] <- renderTable({ req(my_varcomps); my_varcomps }, rownames = FALSE)
+            output[[paste0("genetic_params_", tid_prefix)]] <- renderTable({ req(my_genetic_params); my_genetic_params }, rownames = FALSE)
+            output[[paste0("blups_", tid_prefix)]] <- renderTable({ req(my_blups); my_blups }, rownames = FALSE)
           })
         }
       })
@@ -1448,43 +1504,106 @@ analysisServer <- function(id, home_inputs) {
         descriptive_list <- descriptive_results()
         model_list <- model_results()
         
+        # --- Prepare Combined Data Frames ---
+        comb_desc_sum <- list()
+        comb_boxplots <- list()
+        comb_qqplots <- list()
+        
+        comb_fixed_anova <- list()
+        comb_fixed_blues <- list()
+        comb_fixed_lrt <- list()
+        comb_fixed_varcomps <- list()
+        
+        comb_rand_blups <- list()
+        comb_rand_lrt <- list()
+        comb_rand_varcomps <- list()
+        comb_rand_gen_params <- list()
+        
         for (trait in names(model_list)) {
           tryCatch({
-            # --- Save Descriptive Results ---
+            # Descriptive
             if (!is.null(descriptive_list[[trait]])) {
               desc_res <- descriptive_list[[trait]]
-              fname_sum <- file.path(tmp_dir, paste0(trait, "_descriptive_summary.csv"))
-              write.csv(desc_res$summary, fname_sum, row.names = FALSE)
-              
-              fname_box <- file.path(tmp_dir, paste0(trait, "_boxplot.pdf"))
-              pdf(fname_box, width = 11, height = 8.5); print(desc_res$boxplot); dev.off()
-              
-              if (!is.null(desc_res$qq) && length(desc_res$qq) > 0) {
-                fname_qq <- file.path(tmp_dir, paste0(trait, "_qqplots.pdf"))
-                pdf(fname_qq, width = 11, height = 8.5)
-                for (p in desc_res$qq) { print(p) }
-                dev.off()
-                files_to_zip <- c(files_to_zip, fname_qq)
+              comb_desc_sum[[trait]] <- desc_res$summary
+              comb_boxplots[[trait]] <- desc_res$boxplot
+              if (!is.null(desc_res$qq)) {
+                comb_qqplots <- c(comb_qqplots, desc_res$qq)
               }
-              files_to_zip <- c(files_to_zip, fname_sum, fname_box)
             }
             
-            # --- Save Model Results ---
+            # Model
             trait_model_res <- model_list[[trait]]
+            add_trait_col <- function(df, tr) { 
+              if(is.data.frame(df) && nrow(df)>0) { 
+                # Avoid duplicating Trait column if it exists
+                if(!"Trait" %in% names(df)) df <- cbind(Trait = tr, df)
+                return(df)
+              } 
+              return(NULL) 
+            }
+            
             if (!is.null(trait_model_res$Fixed)) {
               fixed_res <- trait_model_res$Fixed
-              if (is.data.frame(fixed_res$anova_table)) { fname <- file.path(tmp_dir, paste0(trait, "_Fixed_ANOVA.csv")); write.csv(fixed_res$anova_table, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
-              if (is.data.frame(fixed_res$blue_table)) { fname <- file.path(tmp_dir, paste0(trait, "_Fixed_BLUEs.csv")); write.csv(fixed_res$blue_table, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
-              if (is.data.frame(fixed_res$lrt_table)) { fname <- file.path(tmp_dir, paste0(trait, "_Fixed_LRT.csv")); write.csv(fixed_res$lrt_table, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
-              if (is.data.frame(fixed_res$var_comps)) { fname <- file.path(tmp_dir, paste0(trait, "_Fixed_VarComps.csv")); write.csv(fixed_res$var_comps, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
+              comb_fixed_anova[[trait]] <- add_trait_col(fixed_res$anova_table, trait)
+              comb_fixed_blues[[trait]] <- add_trait_col(fixed_res$blue_table, trait)
+              comb_fixed_lrt[[trait]] <- add_trait_col(fixed_res$lrt_table, trait)
+              comb_fixed_varcomps[[trait]] <- add_trait_col(fixed_res$var_comps, trait)
             }
             if (!is.null(trait_model_res$Random)) {
               rand_res <- trait_model_res$Random
-              if (is.data.frame(rand_res$blup_table)) { fname <- file.path(tmp_dir, paste0(trait, "_Random_BLUPs.csv")); write.csv(rand_res$blup_table, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
-              if (is.data.frame(rand_res$lrt_table)) { fname <- file.path(tmp_dir, paste0(trait, "_Random_LRT.csv")); write.csv(rand_res$lrt_table, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
-              if (is.data.frame(rand_res$var_comps)) { fname <- file.path(tmp_dir, paste0(trait, "_Random_VarComps.csv")); write.csv(rand_res$var_comps, fname, row.names=F); files_to_zip <- c(files_to_zip, fname) }
+              comb_rand_blups[[trait]] <- add_trait_col(rand_res$blup_table, trait)
+              comb_rand_lrt[[trait]] <- add_trait_col(rand_res$lrt_table, trait)
+              comb_rand_varcomps[[trait]] <- add_trait_col(rand_res$var_comps, trait)
+              comb_rand_gen_params[[trait]] <- add_trait_col(rand_res$genetic_params, trait)
             }
-          }, error = function(e) { showNotification(paste("Error for trait", trait, ":", e$message), type = "warning") })
+          }, error = function(e) { showNotification(paste("Error combining for trait", trait, ":", e$message), type = "warning") })
+        }
+        
+        # --- Write Combined Excel Files ---
+        write_comb_xlsx <- function(list_dfs, filename) {
+           list_dfs <- Filter(Negate(is.null), list_dfs)
+           if (length(list_dfs) > 0) {
+             fname <- file.path(tmp_dir, filename)
+             wb <- openxlsx::createWorkbook()
+             for (tr in names(list_dfs)) {
+                sheet_name <- substr(make.names(tr), 1, 31)
+                openxlsx::addWorksheet(wb, sheetName = sheet_name)
+                openxlsx::writeData(wb, sheet = sheet_name, list_dfs[[tr]])
+             }
+             openxlsx::saveWorkbook(wb, fname, overwrite = TRUE)
+             files_to_zip <<- c(files_to_zip, fname)
+           }
+        }
+        
+        write_comb_xlsx(comb_desc_sum, "Combined_Descriptive_Summary.xlsx")
+        
+        write_comb_xlsx(comb_fixed_anova, "Combined_Fixed_ANOVA.xlsx")
+        write_comb_xlsx(comb_fixed_blues, "Combined_Fixed_BLUEs.xlsx")
+        write_comb_xlsx(comb_fixed_lrt, "Combined_Fixed_LRT.xlsx")
+        write_comb_xlsx(comb_fixed_varcomps, "Combined_Fixed_VarComps.xlsx")
+        
+        write_comb_xlsx(comb_rand_blups, "Combined_Random_BLUPs.xlsx")
+        write_comb_xlsx(comb_rand_lrt, "Combined_Random_LRT.xlsx")
+        write_comb_xlsx(comb_rand_varcomps, "Combined_Random_VarComps.xlsx")
+        write_comb_xlsx(comb_rand_gen_params, "Combined_Random_Genetic_Params.xlsx")
+        
+        # --- Write Combined PDFs ---
+        comb_boxplots <- Filter(Negate(is.null), comb_boxplots)
+        if (length(comb_boxplots) > 0) {
+          fname_box <- file.path(tmp_dir, "Combined_Boxplots.pdf")
+          pdf(fname_box, width = 11, height = 8.5)
+          for (p in comb_boxplots) { print(p) }
+          dev.off()
+          files_to_zip <- c(files_to_zip, fname_box)
+        }
+        
+        comb_qqplots <- Filter(Negate(is.null), comb_qqplots)
+        if (length(comb_qqplots) > 0) {
+          fname_qq <- file.path(tmp_dir, "Combined_QQplots.pdf")
+          pdf(fname_qq, width = 11, height = 8.5)
+          for (p in comb_qqplots) { print(p) }
+          dev.off()
+          files_to_zip <- c(files_to_zip, fname_qq)
         }
         
         # CORRECTED FUNCTION CALL
